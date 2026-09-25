@@ -19,18 +19,18 @@ window.SITE = {
   // ---------- Bài tập lấy từ Google Sheet (không bắt buộc) ----------
   // Dán link CSV của Google Sheet đã "Xuất bản lên web" vào đây.
   // Khi có link này, trang sẽ đọc bài tập từ Sheet thay cho danh sách baiTap bên dưới.
-  // Xem README.md, mục "Giao bài tập bằng Google Sheet".
+  // Xem file HUONG-DAN.html, mục 5.
   baiTapSheetCsv: "",
 
   // ---------- Trợ lý AI (không bắt buộc) ----------
   // Để trống: trợ lý chạy chế độ miễn phí (trả lời theo dữ liệu soạn sẵn).
-  // Dán địa chỉ Cloudflare Worker vào đây để bật AI thật. Xem README.md, mục "Bật trợ lý AI".
+  // Dán địa chỉ Cloudflare Worker vào đây để bật AI thật. Xem file HUONG-DAN.html, mục 8.
   aiEndpoint: "",
 
   // ---------- Các bài mô phỏng ----------
   // id: tên ngắn không dấu, không cách (dùng để nối với bài tập)
-  // file: đường dẫn tới file mô phỏng trong thư mục sims/
-  // anh: ảnh bìa (không bắt buộc, để "" sẽ tự tạo bìa)
+  // file: tên file mô phỏng (tải lên cùng chỗ với index.html)
+  // anh: tên file ảnh bìa, tải lên cùng chỗ (không bắt buộc, để "" sẽ tự tạo bìa)
   moPhong: [
     {
       id: "buom-bach-duong",
@@ -38,8 +38,8 @@ window.SITE = {
       chuDe: "Tiến hoá",
       lop: "Lớp 12",
       thoiLuong: "20–30 phút",
-      file: "sims/buom-bach-duong.html",
-      anh: "assets/covers/buom-bach-duong.svg",
+      file: "buom-bach-duong.html",
+      anh: "buom-bach-duong.svg",
       moTa: "Em đóng vai chim săn mồi trong rừng bạch dương 3D, quan sát chọn lọc tự nhiên làm thay đổi màu sắc quần thể bướm qua các thế hệ.",
       tuKhoa: ["chọn lọc tự nhiên", "tiến hoá", "biston betularia", "ngụy trang", "công nghiệp", "darwin", "biến dị", "đột biến", "bướm"],
       huongDan: "Chọn môi trường và dự đoán, rồi bấm Bắt đầu săn. Đi bằng W A S D hoặc phím mũi tên (điện thoại: nút ▲◀▼▶), kéo chuột để nhìn quanh, nhấp vào bướm để ăn. Hết lượt, xem tỉ lệ sống sót, trả lời câu hỏi và sang thế hệ tiếp theo. Nút ? cạnh mỗi mục có giải thích."
