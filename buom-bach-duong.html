@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Săn Bướm Bạch Dương</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Lora:ital,wght@1,500;1,600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #111513;
+    --panel: #181d1a;
+    --panel-2: #212824;
+    --line: #2e3731;
+    --text: #ecebe3;
+    --muted: #9ba49b;
+    --lichen: #bccb9e;
+    --lichen-ink: #18200f;
+    --typica: #dcd8cb;
+    --carbo: #2b2724;
+    --mark: #f2c14e;
+    --good: #93cf8c;
+    --bad: #e0806a;
+    --bar: rgba(214, 205, 180, 0.16);
+    --glass: rgba(10, 12, 11, 0.74);
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--text);
+    font: 15px/1.5 'Be Vietnam Pro', system-ui, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, input:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 2px solid var(--lichen); outline-offset: 2px; }
+
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 400px; height: 100%; }
+
+  /* ---------- Stage ---------- */
+  .stage { position: relative; overflow: hidden; background: #0c0f0d; }
+  #cv { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+  #cv.drag { cursor: grabbing; }
+  .hud { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; align-items: center; }
+  .pill {
+    background: var(--glass); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.09); padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .pill b { font-weight: 700; }
+  .pill.hot { background: var(--lichen); color: var(--lichen-ink); border-color: transparent; }
+  .pill.hot.urgent { background: var(--bad); color: #1d0c07; }
+  .hud .grow { flex: 1; }
+  .pill-btn { pointer-events: auto; cursor: pointer; font-weight: 700; }
+  .pill-btn:hover { background: rgba(30,36,32,.9); }
+  .toast {
+    position: absolute; left: 50%; top: 60px; transform: translateX(-50%);
+    background: rgba(10, 12, 11, 0.85); border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 10px 18px; border-radius: 12px; font-weight: 600; pointer-events: none;
+    transition: opacity .5s; max-width: calc(100% - 32px); text-align: center;
+  }
+  .toast.off { opacity: 0; }
+
+  .ctl { position: absolute; bottom: 12px; display: grid; gap: 6px; }
+  .ctl button {
+    width: 50px; height: 50px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+    background: var(--glass); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    font-size: 20px; font-weight: 700; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .ctl button.on, .ctl button:active { background: var(--lichen); color: var(--lichen-ink); }
+  .pad { left: 12px; grid-template-columns: repeat(3, 50px); grid-template-areas: ". f ." "l b r"; }
+  .pad [data-mv="f"] { grid-area: f; } .pad [data-mv="b"] { grid-area: b; }
+  .pad [data-mv="l"] { grid-area: l; } .pad [data-mv="r"] { grid-area: r; }
+  .look { right: 12px; grid-template-columns: repeat(2, 50px); }
+  .ctl-cap { position: absolute; bottom: 124px; font-size: 11px; color: #d6d9d0; background: rgba(10,12,11,.55); padding: 2px 8px; border-radius: 6px; pointer-events: none; }
+  .ctl-cap.l { left: 12px; } .ctl-cap.r { right: 12px; }
+  #mini { position: absolute; right: 12px; bottom: 148px; width: 120px; height: 120px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: var(--glass); pointer-events: none; }
+  .miss { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 2px solid rgba(255,255,255,.7); border-radius: 50%; pointer-events: none; animation: miss .35s ease-out forwards; }
+  @keyframes miss { to { transform: scale(2); opacity: 0; } }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
+
+  .guide { position: absolute; inset: 0; background: rgba(6,8,7,.62); display: grid; place-items: center; padding: 16px; z-index: 5; }
+  .guide-card { width: min(520px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .guide-card h2 { margin: 0; font-family: 'Lora', Georgia, serif; font-style: italic; font-weight: 600; font-size: 22px; }
+  .guide-card ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; }
+  .guide-card kbd { font: 600 12px/1 'Be Vietnam Pro', system-ui, sans-serif; background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; }
+
+  /* ---------- Info popover ---------- */
+  .info {
+    width: 20px; height: 20px; border-radius: 50%; border: 1px solid #56635a; background: transparent;
+    font-size: 12px; font-weight: 800; line-height: 1; cursor: pointer; color: var(--lichen); flex: none; padding: 0;
+    display: inline-grid; place-items: center; vertical-align: middle; margin-left: 4px;
+  }
+  .info:hover, .info[aria-expanded="true"] { background: var(--lichen); color: var(--lichen-ink); border-color: var(--lichen); }
+  #pop {
+    position: fixed; z-index: 50; width: min(320px, calc(100vw - 32px)); background: #f3f1e8; color: #1c211d;
+    border-radius: 12px; padding: 12px 14px 14px; box-shadow: 0 12px 40px rgba(0,0,0,.5); font-size: 13.5px; line-height: 1.5;
+  }
+  #pop h3 { margin: 0 24px 4px 0; font-size: 14px; font-weight: 800; }
+  #pop p { margin: 0; }
+  #pop .x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border: 0; background: transparent; font-size: 18px; cursor: pointer; color: #1c211d; border-radius: 6px; }
+  #pop .x:hover { background: rgba(0,0,0,.08); }
+
+  /* ---------- Panel ---------- */
+  .panel {
+    background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto;
+    padding: 22px 20px 28px; display: flex; flex-direction: column; gap: 22px;
+  }
+  .brand { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  h1 { font-family: 'Lora', Georgia, serif; font-style: italic; font-weight: 600; font-size: 27px; line-height: 1.15; margin: 4px 0 0; text-wrap: balance; }
+  .lede { color: var(--muted); font-size: 13.5px; margin: 8px 0 0; }
+  .sp { font-family: 'Lora', Georgia, serif; font-style: italic; }
+
+  .sec { display: flex; flex-direction: column; gap: 20px; }
+  .block { display: flex; flex-direction: column; gap: 10px; }
+  .label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; display: inline-flex; align-items: center; }
+  .label-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .label-row b { font-variant-numeric: tabular-nums; }
+  .note { font-size: 13px; color: var(--muted); margin: 0; }
+  .err { font-size: 13px; color: var(--bad); margin: 0; font-weight: 600; }
+
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .seg button {
+    min-height: 46px; padding: 6px 8px; border-radius: 10px; cursor: pointer; font-size: 13.5px; font-weight: 600;
+    background: var(--panel-2); border: 1px solid var(--line); line-height: 1.25;
+  }
+  .seg button:hover { border-color: #4a574d; }
+  .seg button[aria-pressed="true"] { background: var(--lichen); color: var(--lichen-ink); border-color: var(--lichen); }
+  .seg button:disabled { opacity: .45; cursor: not-allowed; }
+
+  input[type=range] { width: 100%; accent-color: var(--lichen); height: 28px; }
+  .scale-ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: -6px; }
+
+  .pop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .morph { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; margin-bottom: 6px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex: none; border: 1px solid rgba(255,255,255,.25); }
+  .dot.typ { background: var(--typica); }
+  .dot.car { background: var(--carbo); }
+  .stepper { display: flex; align-items: center; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; height: 50px; overflow: hidden; }
+  .stepper button { width: 46px; height: 100%; border: 0; background: transparent; cursor: pointer; font-size: 22px; font-weight: 600; }
+  .stepper button:hover:not(:disabled) { background: rgba(255,255,255,.05); }
+  .stepper button:disabled { opacity: .3; cursor: not-allowed; }
+  .stepper output { flex: 1; text-align: center; font-weight: 800; font-size: 19px; font-variant-numeric: tabular-nums; }
+
+  .btn { min-height: 52px; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; border: 1px solid transparent; padding: 8px 14px; }
+  .btn.primary { background: var(--lichen); color: var(--lichen-ink); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; border-color: var(--line); font-size: 14px; font-weight: 700; }
+  .btn.ghost:hover { background: rgba(255,255,255,.04); }
+  .btn.accent { background: transparent; border-color: var(--mark); color: var(--mark); font-size: 14.5px; }
+  .btn.accent:hover { background: rgba(242,193,78,.08); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.small { min-height: 40px; font-size: 13px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .big-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .big-grid > div { background: var(--panel-2); border-radius: 12px; padding: 12px 14px; }
+  .big { font-size: 42px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 20px; color: var(--muted); font-weight: 600; }
+  .tip { margin: 0; font-size: 14px; }
+  .keys { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); display: grid; gap: 3px; }
+  .keys b { color: var(--text); font-weight: 600; }
+
+  .verdict { padding: 12px 14px; border-radius: 12px; font-weight: 700; background: var(--panel-2); border: 1px solid var(--line); }
+  .verdict.ok { border-color: var(--good); color: var(--good); }
+  .verdict.no { border-color: var(--bad); color: var(--bad); }
+  .verdict span { display: block; color: var(--text); font-weight: 400; font-size: 13.5px; margin-top: 4px; }
+
+  .surv { display: flex; flex-direction: column; gap: 10px; }
+  .surv .row { display: grid; grid-template-columns: 78px 1fr 46px; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; }
+  .surv .row span { display: flex; align-items: center; gap: 6px; }
+  .surv .row b { text-align: right; font-variant-numeric: tabular-nums; }
+  .track { height: 12px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
+  .fill { height: 100%; width: 0; transition: width 1s cubic-bezier(.2,.8,.2,1); border-radius: 6px; }
+  #f-L { background: var(--typica); }
+  #f-D { background: #6b635b; }
+
+  .check { display: flex; gap: 10px; align-items: center; font-size: 13.5px; cursor: pointer; }
+  .check input { width: 18px; height: 18px; accent-color: var(--mark); }
+
+  .quiz { background: var(--panel-2); border-radius: 12px; padding: 14px; gap: 8px; }
+  .quiz p.q { margin: 0; font-weight: 600; }
+  .opt { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; cursor: pointer; font-size: 13.5px; line-height: 1.4; }
+  .opt:hover:not(:disabled) { border-color: #4a574d; }
+  .opt.correct { background: var(--good); color: #10200d; border-color: var(--good); font-weight: 700; }
+  .opt.wrong { background: rgba(224,128,106,.18); border-color: var(--bad); }
+  .opt:disabled { cursor: default; }
+  .why { font-size: 13px; color: var(--text); margin: 4px 0 0; padding-top: 8px; border-top: 1px solid var(--line); }
+  .why b { color: var(--lichen); }
+
+  .apply-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .apply-head h2 { margin: 0; font-family: 'Lora', Georgia, serif; font-style: italic; font-weight: 600; font-size: 22px; }
+  .score { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qtag { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--mark); }
+  textarea { width: 100%; min-height: 76px; resize: vertical; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 13.5px/1.45 'Be Vietnam Pro', system-ui, sans-serif; }
+  .reveal { align-self: flex-start; background: transparent; border: 1px dashed #56635a; color: var(--lichen); border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .reveal:hover { background: rgba(188,203,158,.08); }
+
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .ax { fill: var(--muted); font-size: 10px; font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+  .chart .grid { stroke: var(--line); stroke-width: 1; }
+  .chart .polbar { fill: var(--bar); }
+  .chart .ln { fill: none; stroke: var(--lichen); stroke-width: 2.2; stroke-linejoin: round; }
+  .chart .ln.proj { stroke-dasharray: 4 4; }
+  .chart .pt { fill: var(--lichen); stroke: var(--panel); stroke-width: 2; }
+  .chart .pt.proj { fill: var(--panel); stroke: var(--lichen); }
+  .chart .val { fill: var(--text); font-size: 11px; font-weight: 700; font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 3px; background: var(--lichen); vertical-align: middle; margin-right: 5px; }
+  .legend i.b { height: 10px; background: rgba(214,205,180,.35); }
+
+  .seg.four { grid-template-columns: repeat(4, 1fr); }
+  .settings { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .settings[open] { padding-bottom: 14px; }
+  .settings .block { margin-top: 12px; gap: 8px; }
+  .copy-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .copy-row .note { flex: 1; min-width: 120px; }
+  #copy-fallback { width: 100%; min-height: 90px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .stage:fullscreen { width: 100vw; height: 100vh; }
+  details summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .tbl-wrap { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; }
+  th:first-child, td:first-child { text-align: left; }
+
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    .stage { height: 70vh; min-height: 420px; }
+    .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; padding-inline: 16px; }
+    .ctl button { width: 46px; height: 46px; }
+    .pad { grid-template-columns: repeat(3, 46px); }
+    .look { grid-template-columns: repeat(2, 46px); }
+    #mini { width: 96px; height: 96px; bottom: 140px; }
+    .ctl-cap { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .fill, .toast { transition: none; } .miss { animation-duration: .01s; } }
+  .home-link { color: var(--lichen); text-decoration: none; font-weight: 800; }
+  .home-link:hover { text-decoration: underline; }
+</style>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Rừng bạch dương 3D có bướm đậu trên thân cây. Đi lại, nhìn quanh và nhấp vào bướm để ăn."></canvas>
+    <div class="loading" id="loading">Đang dựng khu rừng…</div>
+    <div class="hud">
+      <div class="pill">Thế hệ <b id="hud-gen">1</b></div>
+      <div class="pill" id="hud-env">Rừng sạch</div>
+      <div class="pill" id="hud-pop">Sáng <b id="hud-l">20</b> · Tối <b id="hud-d">20</b></div>
+      <div class="pill hot" id="hud-hunt" hidden><b id="hud-time">60</b> giây · đã ăn <b id="hud-caught">0</b>/<span id="hud-target">20</span></div>
+      <span class="grow"></span>
+      <button type="button" class="pill pill-btn" id="btn-sound" aria-pressed="true">Âm thanh: bật</button>
+      <button type="button" class="pill pill-btn" id="btn-fs">Toàn màn hình</button>
+      <button type="button" class="pill pill-btn" id="btn-guide">? Hướng dẫn</button>
+    </div>
+    <div class="toast off" id="toast"></div>
+
+    <canvas id="mini" width="240" height="240" aria-hidden="true"></canvas>
+    <span class="ctl-cap l">Di chuyển · W A S D</span>
+    <div class="ctl pad" id="pad">
+      <button type="button" data-mv="f" aria-label="Đi tới">▲</button>
+      <button type="button" data-mv="l" aria-label="Bước sang trái">◀</button>
+      <button type="button" data-mv="b" aria-label="Lùi lại">▼</button>
+      <button type="button" data-mv="r" aria-label="Bước sang phải">▶</button>
+    </div>
+    <span class="ctl-cap r">Quay · Phóng to</span>
+    <div class="ctl look">
+      <button type="button" id="nav-left" aria-label="Quay sang trái">↺</button>
+      <button type="button" id="nav-right" aria-label="Quay sang phải">↻</button>
+      <button type="button" id="nav-out" aria-label="Thu nhỏ">−</button>
+      <button type="button" id="nav-in" aria-label="Phóng to">+</button>
+    </div>
+
+    <div class="guide" id="guide" hidden>
+      <div class="guide-card" role="dialog" aria-labelledby="guide-h">
+        <h2 id="guide-h">Em là một con chim trong rừng bạch dương</h2>
+        <ol>
+          <li>Ở bảng bên phải, chọn <b>môi trường</b> và <b>số bướm</b> ban đầu. Bấm các nút <span class="info" aria-hidden="true">?</span> để đọc giải thích.</li>
+          <li>Chọn <b>dự đoán</b>: dạng bướm nào sẽ sống sót nhiều hơn?</li>
+          <li>Bấm <b>Bắt đầu săn</b>. Đi lại bằng <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hoặc phím mũi tên (trên điện thoại dùng nút ▲◀▼▶). <b>Kéo chuột / vuốt</b> để nhìn quanh, <b>cuộn chuột</b> để phóng to.</li>
+          <li><b>Nhấp vào con bướm</b> em nhìn thấy để ăn. Chạm gần là được.</li>
+          <li>Xem kết quả. Những con em bỏ sót được <b style="color:var(--mark)">khoanh vàng</b>. Hãy đi tìm chúng rồi trả lời câu hỏi.</li>
+          <li>Lặp lại vài thế hệ, sau đó làm <b>Câu hỏi vận dụng</b>.</li>
+        </ol>
+        <p class="note">Mẹo: khi <b>chưa săn</b>, em có thể nhấp vào một con bướm hoặc một thân cây để đọc chú thích về nó.</p>
+        <button type="button" class="btn primary" id="guide-close">Đã hiểu, vào rừng</button>
+      </div>
+    </div>
+    <!-- popover lives inside the stage so it still shows in fullscreen -->
+    <div id="pop" role="dialog" hidden><button type="button" class="x" aria-label="Đóng">×</button><h3></h3><p></p></div>
+  </div>
+
+  <aside class="panel" id="panel">
+    <header>
+      <div class="brand"><a class="home-link" href="../index.html">← Trang chủ</a> · DINHBINH.EDU · Chọn lọc tự nhiên</div>
+      <h1>Bướm sâu đo bạch dương</h1>
+      <p class="lede">Em là một <b>con chim</b> trong rừng bạch dương. Đi quanh các thân cây, tìm và ăn những con bướm <span class="sp">Biston betularia</span><button type="button" class="info" data-info="species" aria-label="Giải thích: loài bướm">?</button> em phát hiện được. Con nào sống sót sẽ sinh ra thế hệ sau.</p>
+    </header>
+
+    <!-- SETUP -->
+    <section class="sec" id="sec-setup">
+      <div class="block">
+        <div class="label-row"><span class="label">Môi trường · bụi than trên vỏ cây<button type="button" class="info" data-info="soot" aria-label="Giải thích: bụi than">?</button></span><b id="pol-val">0%</b></div>
+        <div class="seg" id="env-seg">
+          <button type="button" data-p="0" aria-pressed="true">Rừng sạch</button>
+          <button type="button" data-p="50" aria-pressed="false">Ô nhiễm vừa</button>
+          <button type="button" data-p="95" aria-pressed="false">Khu công nghiệp</button>
+        </div>
+        <input type="range" id="pol" min="0" max="100" step="5" value="0" aria-label="Mức bụi than">
+        <div class="scale-ends"><span>Vỏ trắng, nhiều địa y<button type="button" class="info" data-info="lichen" aria-label="Giải thích: địa y">?</button></span><span>Phủ kín muội than</span></div>
+      </div>
+
+      <div class="block">
+        <span class="label">Quần thể thế hệ&nbsp;<span id="gen-lbl">1</span><button type="button" class="info" data-info="population" aria-label="Giải thích: quần thể">?</button></span>
+        <div class="pop-grid">
+          <div>
+            <div class="morph"><i class="dot typ"></i>Dạng sáng<button type="button" class="info" data-info="typica" aria-label="Giải thích: dạng sáng">?</button></div>
+            <div class="stepper"><button type="button" data-step="L,-1" aria-label="Bớt bướm sáng">−</button><output id="out-L">20</output><button type="button" data-step="L,1" aria-label="Thêm bướm sáng">+</button></div>
+          </div>
+          <div>
+            <div class="morph"><i class="dot car"></i>Dạng tối<button type="button" class="info" data-info="carbonaria" aria-label="Giải thích: dạng tối">?</button></div>
+            <div class="stepper"><button type="button" data-step="D,-1" aria-label="Bớt bướm tối">−</button><output id="out-D">20</output><button type="button" data-step="D,1" aria-label="Thêm bướm tối">+</button></div>
+          </div>
+        </div>
+        <p class="note" id="pop-note"></p>
+      </div>
+
+      <div class="block">
+        <span class="label">Độ khó quan sát<button type="button" class="info" data-info="difficulty" aria-label="Giải thích: độ khó">?</button></span>
+        <div class="seg" id="set-diff">
+          <button type="button" data-v="easy">Dễ</button>
+          <button type="button" data-v="mid">Vừa</button>
+          <button type="button" data-v="hard">Khó</button>
+        </div>
+      </div>
+
+      <div class="block">
+        <span class="label">Dự đoán: dạng nào sống sót nhiều hơn?<button type="button" class="info" data-info="predict" aria-label="Giải thích: dự đoán">?</button></span>
+        <div class="seg" id="pred-seg">
+          <button type="button" data-v="L" aria-pressed="false">Dạng sáng</button>
+          <button type="button" data-v="D" aria-pressed="false">Dạng tối</button>
+          <button type="button" data-v="E" aria-pressed="false">Như nhau</button>
+        </div>
+        <p class="err" id="pred-err" hidden>Chọn một dự đoán trước khi bắt đầu săn.</p>
+      </div>
+
+      <details class="settings" id="settings">
+        <summary>Tuỳ chỉnh dành cho giáo viên</summary>
+        <div class="block">
+          <span class="label">Thời gian mỗi lượt săn</span>
+          <div class="seg four" id="set-time">
+            <button type="button" data-v="30">30 giây</button><button type="button" data-v="45">45 giây</button>
+            <button type="button" data-v="60">60 giây</button><button type="button" data-v="90">90 giây</button>
+          </div>
+        </div>
+        <div class="block">
+          <span class="label">Chim ăn bao nhiêu phần quần thể<button type="button" class="info" data-info="eat" aria-label="Giải thích: áp lực săn mồi">?</button></span>
+          <div class="seg" id="set-eat">
+            <button type="button" data-v="0.3">30%</button><button type="button" data-v="0.5">50%</button><button type="button" data-v="0.7">70%</button>
+          </div>
+        </div>
+        <div class="block">
+          <span class="label">Biến dị ở con non<button type="button" class="info" data-info="mutation" aria-label="Giải thích: biến dị">?</button></span>
+          <div class="seg" id="set-mut">
+            <button type="button" data-v="0">Không có</button><button type="button" data-v="0.01">1%</button><button type="button" data-v="0.03">3%</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="block">
+        <button type="button" class="btn primary" id="btn-hunt">Bắt đầu săn · 60 giây</button>
+        <div class="row2">
+          <button type="button" class="btn ghost" id="btn-auto">Xem chim tự săn</button>
+          <button type="button" class="btn ghost" id="btn-fast">Chạy nhanh 10 thế hệ</button>
+        </div>
+        <button type="button" class="btn ghost" id="btn-history">Tái hiện lịch sử nước Anh 1820–2000</button>
+        <p class="note" id="setup-msg" hidden></p>
+        <button type="button" class="btn accent" id="btn-apply-1" hidden>Làm câu hỏi vận dụng</button>
+      </div>
+    </section>
+
+    <!-- HUNT -->
+    <section class="sec" id="sec-hunt" hidden>
+      <div class="big-grid">
+        <div><span class="label">Còn lại</span><div class="big" id="h-time">60<small> s</small></div></div>
+        <div><span class="label">Đã ăn</span><div class="big"><span id="h-caught">0</span><small>/<span id="h-target">20</span></small></div></div>
+      </div>
+      <p class="tip" id="h-tip"></p>
+      <ul class="keys" id="h-keys">
+        <li><b>Đi lại:</b> W A S D / phím mũi tên, hoặc nút ▲◀▼▶</li>
+        <li><b>Nhìn quanh:</b> kéo chuột / vuốt, hoặc nút ↺ ↻</li>
+        <li><b>Phóng to:</b> cuộn chuột / chụm hai ngón, hoặc nút + −</li>
+        <li><b>Ăn bướm:</b> nhấp / chạm vào con bướm (chạm gần là được)</li>
+      </ul>
+      <p class="note">Bản đồ nhỏ góc phải cho biết em đang đứng ở đâu trong khu săn (vòng tròn).</p>
+      <button type="button" class="btn ghost" id="btn-stop">Kết thúc lượt săn</button>
+    </section>
+
+    <!-- RESULT -->
+    <section class="sec" id="sec-result" hidden>
+      <div class="verdict" id="verdict"></div>
+      <div class="block">
+        <span class="label">Tỉ lệ sống sót sau lượt săn<button type="button" class="info" data-info="survival" aria-label="Giải thích: tỉ lệ sống sót">?</button></span>
+        <div class="surv">
+          <div class="row"><span><i class="dot typ"></i>Sáng</span><div class="track"><div class="fill" id="f-L"></div></div><b id="t-L">0%</b></div>
+          <div class="row"><span><i class="dot car"></i>Tối</span><div class="track"><div class="fill" id="f-D"></div></div><b id="t-D">0%</b></div>
+        </div>
+        <p class="note" id="res-note"></p>
+      </div>
+      <label class="check"><input type="checkbox" id="chk-surv" checked> Khoanh vàng những con còn sống (đi quanh và nhấp vào để xem chú thích)</label>
+      <div class="block quiz" id="quiz"></div>
+      <div class="block">
+        <span class="label">Sinh sản<button type="button" class="info" data-info="reproduce" aria-label="Giải thích: sinh sản">?</button></span>
+        <p class="note" id="next-note"></p>
+        <button type="button" class="btn primary" id="btn-next">Sang thế hệ tiếp theo</button>
+        <button type="button" class="btn accent" id="btn-apply-2">Kết thúc &amp; làm câu hỏi vận dụng</button>
+      </div>
+    </section>
+
+    <!-- APPLY -->
+    <section class="sec" id="sec-apply" hidden>
+      <div class="apply-head"><h2>Câu hỏi vận dụng</h2><span class="score" id="apply-score"></span></div>
+      <p class="note">Dùng điều em vừa quan sát để giải thích các tình huống ngoài đời thực. Câu trắc nghiệm: chọn đáp án để xem giải thích. Câu tự luận: viết câu trả lời rồi bấm “Xem gợi ý đáp án”.</p>
+      <div class="sec" id="apply-list"></div>
+      <button type="button" class="btn ghost" id="btn-apply-back">← Quay lại mô phỏng</button>
+    </section>
+
+    <!-- CHART -->
+    <section class="block chart" id="sec-chart">
+      <span class="label">Tỉ lệ dạng tối qua các thế hệ<button type="button" class="info" data-info="chart" aria-label="Giải thích: biểu đồ">?</button></span>
+      <div id="chart"></div>
+      <div class="legend"><span><i></i>% bướm dạng tối</span><span><i class="b"></i>Mức bụi than</span></div>
+      <details>
+        <summary>Bảng số liệu để chép vào vở</summary>
+        <div class="tbl-wrap"><table id="tbl"></table></div>
+        <div class="copy-row" style="margin-top:10px">
+          <button type="button" class="btn ghost small" id="btn-copy">Sao chép bảng (dán vào Word/Excel)</button>
+          <span class="note" id="copy-msg"></span>
+        </div>
+        <textarea id="copy-fallback" hidden readonly aria-label="Bảng số liệu dạng văn bản"></textarea>
+      </details>
+    </section>
+
+    <button type="button" class="btn ghost small" id="btn-reset">Làm lại từ đầu</button>
+  </aside>
+</div>
+
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  if (!window.THREE) { $('loading').textContent = 'Không tải được thư viện 3D. Kiểm tra kết nối mạng rồi tải lại trang.'; return; }
+  const V3 = THREE.Vector3;
+  const HUNT_TIME = 60;
+  let WING = 0.075;            // moth wingspan, metres (set by difficulty)
+  let MARKS = 0.25;             // how many dark marks the bark carries (set by difficulty)
+  const EYE_H = 1.7;           // eye height
+  const ZONE = 9.5;            // hunting-zone radius (moths live here)
+  const BOUND = 11;            // how far the player can walk
+  const TH = 16;               // trunk height
+
+  // ---------- helpers ----------
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const gauss = R => (R() + R() + R() - 1.5) / 1.5;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const envName = p => p < 0.2 ? 'Rừng sạch' : p < 0.65 ? 'Ô nhiễm vừa' : 'Ô nhiễm nặng';
+  const col = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t);
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  // ---------- state ----------
+  const S = {
+    state: 'setup', gen: 1, pollution: 0, pred: null,
+    nL: 20, nD: 20, total: 40,
+    moths: [], target: 20, timeLeft: HUNT_TIME, caught: 0, misses: 0, auto: false, nextPeck: 0,
+    sL: 0, sD: 0, history: [], next: null, showSurv: true, view: 'setup',
+    huntTime: HUNT_TIME, eatFrac: 0.5, mut: 0, diff: 'easy'
+  };
+  const DIFF = { easy: { marks: .25, wing: .075 }, mid: { marks: .6, wing: .068 }, hard: { marks: 1, wing: .062 } };
+
+  // ---------- sound (synthesised, no files) ----------
+  const AU = { ctx: null, on: true, master: null };
+  function audioInit() {
+    if (AU.ctx || !AU.on) return;
+    try {
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      const ctx = AU.ctx = new C();
+      AU.master = ctx.createGain(); AU.master.gain.value = .7; AU.master.connect(ctx.destination);
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      AU.noise = buf;
+      const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const g = ctx.createGain(); g.gain.value = .045;
+      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .13; lg.gain.value = .03;
+      lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      src.connect(lp); lp.connect(g); g.connect(AU.master); src.start();
+    } catch (e) { AU.ctx = null; }
+  }
+  function chirp() {
+    if (!AU.ctx || !AU.on) return;
+    const ctx = AU.ctx; let t = ctx.currentTime + .05; const n = 2 + (Math.random() * 5 | 0), base = 2600 + Math.random() * 1600;
+    for (let i = 0; i < n; i++) {
+      const o = ctx.createOscillator(), g = ctx.createGain(), dur = .05 + Math.random() * .07;
+      o.type = 'sine'; o.frequency.setValueAtTime(base * (1 + Math.random() * .4), t);
+      o.frequency.exponentialRampToValueAtTime(base * (.7 + Math.random() * .6), t + dur);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.035, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + dur);
+      o.connect(g); g.connect(AU.master); o.start(t); o.stop(t + dur + .02);
+      t += dur + .03 + Math.random() * .08;
+    }
+  }
+  function peckSound(hit) {
+    if (!AU.ctx || !AU.on) return;
+    const ctx = AU.ctx, t = ctx.currentTime;
+    const s = ctx.createBufferSource(); s.buffer = AU.noise;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = hit ? 1900 : 900; bp.Q.value = 2;
+    const g = ctx.createGain(); g.gain.setValueAtTime(hit ? .5 : .18, t); g.gain.exponentialRampToValueAtTime(.001, t + (hit ? .06 : .04));
+    s.connect(bp); bp.connect(g); g.connect(AU.master); s.start(t, Math.random()); s.stop(t + .08);
+    if (hit) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(70, t + .09);
+      og.gain.setValueAtTime(.25, t); og.gain.exponentialRampToValueAtTime(.001, t + .1);
+      o.connect(og); og.connect(AU.master); o.start(t); o.stop(t + .12);
+    }
+  }
+  setInterval(() => { if (AU.ctx && AU.on && Math.random() < .55 - S.pollution * .35) chirp(); }, 2600);
+  document.addEventListener('pointerdown', audioInit, { capture: true });
+
+  // ---------- info popover ----------
+  const INFO = {
+    species: ['Bướm sâu đo bạch dương', 'Tên khoa học Biston betularia, sống ở châu Âu. Ban ngày bướm đậu bất động trên thân cây, ban đêm mới bay. Vì vậy vũ khí sống còn của chúng là ngụy trang trước mắt chim.'],
+    soot: ['Bụi than và Cách mạng công nghiệp', 'Thế kỷ XIX, khói than từ nhà máy ở Anh bám lên thân cây và làm chết lớp địa y sáng màu. Vỏ cây trở nên sẫm đen. Bướm không bị bụi than giết trực tiếp. Bụi than chỉ làm thay đổi “phông nền” nơi bướm đậu.'],
+    lichen: ['Địa y', 'Địa y là sự cộng sinh giữa nấm và tảo, tạo thành các mảng xám xanh trên vỏ cây. Địa y rất nhạy với khí SO₂ nên chết dần ở vùng ô nhiễm. Hoa văn lốm đốm của bướm dạng sáng trông giống hệt lớp địa y này.'],
+    population: ['Quần thể bướm', 'Ở thế hệ 1, em tự đặt số bướm mỗi dạng (tổng 10 đến 60 con). Mỗi lượt săn, chim được ăn một nửa quần thể. Từ thế hệ 2, số bướm được tính tự động từ những con sống sót.'],
+    typica: ['Dạng sáng (typica)', 'Cánh trắng ngà, lốm đốm chấm đen. Đây là dạng phổ biến ở Anh trước năm 1848. Trên vỏ bạch dương phủ địa y, nó gần như “biến mất”.'],
+    carbonaria: ['Dạng tối (carbonaria)', 'Cánh gần như đen hoàn toàn, do một đột biến gen trội. Dạng này được ghi nhận lần đầu ở Manchester năm 1848. Đến năm 1895 nó chiếm khoảng 98% số bướm ở đây.'],
+    predict: ['Vì sao phải dự đoán trước?', 'Nhà khoa học luôn nêu giả thuyết trước khi làm thí nghiệm. Sau lượt săn, em sẽ so sánh kết quả với dự đoán để kiểm tra suy luận của mình.'],
+    survival: ['Tỉ lệ sống sót', 'Tỉ lệ sống sót = số con còn sống ÷ số con ban đầu của dạng đó. Hãy so sánh tỉ lệ chứ không so số lượng, vì hai dạng có thể có số con ban đầu khác nhau.'],
+    reproduce: ['Quy tắc sinh sản trong mô phỏng', 'Những con sống sót giao phối và sinh ra thế hệ mới có tổng số con như cũ. Màu cánh di truyền từ bố mẹ, nên tỉ lệ màu ở thế hệ con bằng tỉ lệ màu ở những con bố mẹ sống sót.'],
+    chart: ['Đọc biểu đồ', 'Mỗi chấm là phần trăm bướm dạng tối ở đầu mỗi thế hệ. Cột mờ phía sau là mức bụi than lúc đó. Chấm rỗng, đường nét đứt là dự báo cho thế hệ kế tiếp.'],
+    difficulty: ['Độ khó quan sát', 'Dễ: vỏ cây ít vết đen, bướm to hơn một chút. Hợp với lần chơi đầu hoặc học sinh nhỏ tuổi. Vừa: thêm vết gạch đen trên vỏ. Khó: vỏ bạch dương như ngoài tự nhiên, nhiều vết gạch và sẹo cành đen, bướm đúng kích thước thật. Độ khó chỉ làm việc tìm bướm dễ hay khó hơn. Quy luật chọn lọc vẫn giữ nguyên.'],
+    eat: ['Áp lực chọn lọc', 'Là phần quần thể bị chim ăn trong mỗi lượt. Áp lực càng lớn thì tỉ lệ các dạng bướm thay đổi càng nhanh qua mỗi thế hệ. Hãy thử so sánh 30% với 70%.'],
+    mutation: ['Biến dị ở con non', 'Mỗi con non có một xác suất nhỏ mang màu khác bố mẹ. Nguyên nhân là đột biến, hoặc alen lặn quy định màu sáng vẫn ẩn trong những con tối dị hợp. Nhờ vậy một dạng đã biến mất vẫn có thể xuất hiện trở lại. Khi chọn “Không có”, dạng nào mất hẳn sẽ không bao giờ quay lại.'],
+    history: ['Tái hiện lịch sử nước Anh', 'Mô phỏng tự chạy 36 thế hệ, mỗi thế hệ ứng với khoảng 5 năm, từ 1820 đến 2000. Mức bụi than thay đổi theo lịch sử thật: sạch trước 1850, ô nhiễm nặng dần trong Cách mạng công nghiệp, rồi giảm sau Luật Không khí sạch 1956. Số liệu hiện tại sẽ được thay bằng số liệu lịch sử.'],
+  };
+  const pop = $('pop'); let popOwner = null;
+  function showPop(title, text, x, y, owner) {
+    pop.querySelector('h3').textContent = title; pop.querySelector('p').textContent = text;
+    pop.hidden = false;
+    const w = pop.offsetWidth, h = pop.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+    let left = clamp(x - w / 2, 16, vw - w - 16), top = y + 14;
+    if (top + h > vh - 12) top = Math.max(12, y - h - 14);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    if (popOwner && popOwner.setAttribute) popOwner.setAttribute('aria-expanded', 'false');
+    popOwner = owner || null; if (popOwner && popOwner.setAttribute) popOwner.setAttribute('aria-expanded', 'true');
+  }
+  function hidePop() { pop.hidden = true; if (popOwner && popOwner.setAttribute) popOwner.setAttribute('aria-expanded', 'false'); popOwner = null; }
+  pop.querySelector('.x').addEventListener('click', hidePop);
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button.info[data-info]');
+    if (b) {
+      e.preventDefault(); e.stopPropagation();
+      if (popOwner === b) { hidePop(); return; }
+      const r = b.getBoundingClientRect(), [t, x] = INFO[b.dataset.info];
+      showPop(t, x, r.left + r.width / 2, r.bottom, b); return;
+    }
+    if (!pop.hidden && !pop.contains(e.target) && e.target.id !== 'cv') hidePop();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { hidePop(); $('guide').hidden = true; } });
+  $('panel').addEventListener('scroll', hidePop, { passive: true });
+
+  // ---------- procedural textures ----------
+  const noise = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d'), d = g.createImageData(128, 128);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255 | 0; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = Math.random() * 70 | 0; }
+    g.putImageData(d, 0, 0); return c;
+  })();
+  function wrapper(w, h) {
+    return (x, y, r, f) => {
+      for (const ox of [0, -w, w]) {
+        if (ox === -w && x + r < w) continue; if (ox === w && x - r > 0) continue;
+        for (const oy of [0, -h, h]) {
+          if (oy === -h && y + r < h) continue; if (oy === h && y - r > 0) continue;
+          f(x + ox, y + oy);
+        }
+      }
+    };
+  }
+  function paintBirch(g, w, h, R) {
+    const rep = wrapper(w, h), area = w * h;
+    g.fillStyle = '#e2ded3'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < area / 2200; i++) {
+      const x = R() * w, y = R() * h, r = 15 + R() * 60, v = 190 + R() * 55 | 0;
+      rep(x, y, r, (X, Y) => {
+        const gr = g.createRadialGradient(X, Y, 0, X, Y, r);
+        gr.addColorStop(0, `rgba(${v},${v - 3},${v - 12},.38)`); gr.addColorStop(1, `rgba(${v},${v - 3},${v - 12},0)`);
+        g.fillStyle = gr; g.fillRect(X - r, Y - r, r * 2, r * 2);
+      });
+    }
+    for (let i = 0; i < area / 9000; i++) {
+      const x = R() * w, y = R() * h, r = 20 + R() * 50;
+      rep(x, y, r, (X, Y) => {
+        const gr = g.createRadialGradient(X, Y, 0, X, Y, r);
+        gr.addColorStop(0, 'rgba(200,172,140,.2)'); gr.addColorStop(1, 'rgba(200,172,140,0)');
+        g.fillStyle = gr; g.fillRect(X - r, Y - r, r * 2, r * 2);
+      });
+    }
+    const lich = ['170,181,148', '196,203,176', '143,154,124', '214,216,200', '120,128,108'];
+    for (let i = 0; i < area / 5200; i++) {
+      const cx = R() * w, cy = R() * h, spread = 8 + R() * 28, n = 25 + R() * 70;
+      for (let k = 0; k < n; k++) {
+        const x = cx + gauss(R) * spread * 1.4, y = cy + gauss(R) * spread, r = .7 + R() * 3.4;
+        g.fillStyle = `rgba(${lich[R() * lich.length | 0]},${.3 + R() * .45})`;
+        rep(x, y, r, (X, Y) => { g.beginPath(); g.arc(X, Y, r, 0, 7); g.fill(); });
+      }
+    }
+    for (let i = 0; i < area / 5000; i++) {
+      const x = R() * w, y = R() * h, len = 20 + R() * 130, th = .6 + R() * 2;
+      rep(x + len / 2, y, len / 2, (X, Y) => {
+        g.fillStyle = 'rgba(250,246,238,.6)'; g.fillRect(X - len / 2, Y, len, th);
+        g.fillStyle = 'rgba(120,98,78,.22)'; g.fillRect(X - len / 2 + 2, Y + th, len * .9, .8);
+      });
+    }
+    for (let i = 0; i < area / 1600 * MARKS; i++) {
+      const x = R() * w, y = R() * h, len = 4 + R() * R() * 60 * (.4 + .6 * MARKS), th = 1 + R() * 2.6 * (.5 + .5 * MARKS), rot = (R() - .5) * .08;
+      g.fillStyle = `rgba(${55 + R() * 30 | 0},${44 + R() * 18 | 0},34,${(.35 + R() * .45) * (.55 + .45 * MARKS)})`;
+      rep(x, y, len / 2, (X, Y) => { g.beginPath(); g.ellipse(X, Y, len / 2, th / 2, rot, 0, 7); g.fill(); });
+    }
+    for (let i = 0; i < (MARKS < .5 ? 0 : area / 55000 * MARKS); i++) {
+      const x = R() * w, y = R() * h, s = 16 + R() * 42, J = Array.from({ length: 8 }, () => (R() - .5) * s * .15);
+      g.fillStyle = `rgba(38,32,27,${.75 + R() * .2})`;
+      rep(x, y, s, (X, Y) => {
+        g.beginPath(); g.moveTo(X - s + J[0], Y + J[1]);
+        g.quadraticCurveTo(X - s * .4, Y - s * .1, X + J[2], Y - s * .38 + J[3]);
+        g.quadraticCurveTo(X + s * .4, Y - s * .1, X + s + J[4], Y + J[5]);
+        g.quadraticCurveTo(X, Y + s * .02, X + J[6], Y + s * .16);
+        g.quadraticCurveTo(X, Y + s * .02, X - s + J[0], Y + J[1]); g.fill();
+      });
+    }
+    g.globalAlpha = .45; g.fillStyle = g.createPattern(noise, 'repeat'); g.fillRect(0, 0, w, h); g.globalAlpha = 1;
+  }
+  function paintSoot(g, w, h, R) {
+    const rep = wrapper(w, h), area = w * h;
+    g.fillStyle = '#322e2a'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < area / 2500; i++) {
+      const x = R() * w, y = R() * h, r = 15 + R() * 70, dark = R() < .6, c = dark ? '18,16,14' : '78,72,64';
+      rep(x, y, r, (X, Y) => {
+        const gr = g.createRadialGradient(X, Y, 0, X, Y, r);
+        gr.addColorStop(0, `rgba(${c},${dark ? .4 : .22})`); gr.addColorStop(1, `rgba(${c},0)`);
+        g.fillStyle = gr; g.fillRect(X - r, Y - r, r * 2, r * 2);
+      });
+    }
+    for (let i = 0; i < area / 6000; i++) {
+      const x = R() * w, y = R() * h, wd = .8 + R() * 1.5, len = 30 + R() * 160;
+      g.fillStyle = `rgba(70,64,58,${.12 + R() * .15})`;
+      rep(x, y + len / 2, len / 2, (X, Y) => g.fillRect(X, Y - len / 2, wd, len));
+    }
+    for (let i = 0; i < area / 1800 * MARKS; i++) {
+      const x = R() * w, y = R() * h, len = 4 + R() * R() * 55, th = 1 + R() * 2.4;
+      g.fillStyle = R() < .7 ? `rgba(12,10,9,${.45 + R() * .4})` : `rgba(96,90,82,${.2 + R() * .2})`;
+      rep(x, y, len / 2, (X, Y) => { g.beginPath(); g.ellipse(X, Y, len / 2, th / 2, 0, 0, 7); g.fill(); });
+    }
+    g.globalAlpha = .4; g.fillStyle = g.createPattern(noise, 'repeat'); g.fillRect(0, 0, w, h); g.globalAlpha = 1;
+  }
+  function paintGround(g, w, h, R) {
+    const rep = wrapper(w, h);
+    g.fillStyle = '#463d2c'; g.fillRect(0, 0, w, h);
+    const moss = ['79,90,46', '66,78,38', '95,104,56'];
+    for (let i = 0; i < 60; i++) {
+      const x = R() * w, y = R() * h, r = 20 + R() * 60, c = moss[R() * 3 | 0];
+      rep(x, y, r, (X, Y) => {
+        const gr = g.createRadialGradient(X, Y, 0, X, Y, r);
+        gr.addColorStop(0, `rgba(${c},.55)`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(X - r, Y - r, r * 2, r * 2);
+      });
+    }
+    const leaves = ['107,83,52', '138,106,62', '90,74,46', '156,127,74', '63,58,37', '120,70,40'];
+    for (let i = 0; i < 1800; i++) {
+      const x = R() * w, y = R() * h, l = 4 + R() * 8, rot = R() * 3.2, c = leaves[R() * leaves.length | 0], a = .55 + R() * .45;
+      rep(x, y, l, (X, Y) => { g.fillStyle = `rgba(${c},${a})`; g.beginPath(); g.ellipse(X, Y, l, l * .5, rot, 0, 7); g.fill(); });
+    }
+    g.lineCap = 'round';
+    for (let i = 0; i < 40; i++) {
+      const x = R() * w, y = R() * h, l = 15 + R() * 40, a = R() * 3.2, lw = 1.5 + R();
+      rep(x, y, l, (X, Y) => { g.strokeStyle = 'rgba(52,40,28,.8)'; g.lineWidth = lw; g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.cos(a) * l, Y + Math.sin(a) * l); g.stroke(); });
+    }
+    g.globalAlpha = .35; g.fillStyle = g.createPattern(noise, 'repeat'); g.fillRect(0, 0, w, h); g.globalAlpha = 1;
+  }
+  function grassCanvas() {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), R = mulberry32(5);
+    for (let i = 0; i < 70; i++) {
+      const x = 128 + gauss(R) * 60, hgt = 90 + R() * 150, bend = (R() - .5) * 80;
+      g.strokeStyle = `hsl(${75 + R() * 30},${30 + R() * 25}%,${22 + R() * 22}%)`; g.lineWidth = 2 + R() * 3; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(x, 256); g.quadraticCurveTo(x + bend * .3, 256 - hgt * .6, x + bend, 256 - hgt); g.stroke();
+    }
+    return c;
+  }
+  function canvasOf(w, h, painter, seed) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    painter(c.getContext('2d'), w, h, mulberry32(seed)); return c;
+  }
+
+  // ---------- moth sprite ----------
+  const WP = (() => {
+    const fw = new Path2D(), hw = new Path2D();
+    for (const s of [1, -1]) {
+      fw.moveTo(0.02 * s, -0.10);
+      fw.bezierCurveTo(0.18 * s, -0.16, 0.38 * s, -0.10, 0.52 * s, -0.02);
+      fw.bezierCurveTo(0.47 * s, 0.06, 0.40 * s, 0.13, 0.30 * s, 0.16);
+      fw.bezierCurveTo(0.20 * s, 0.15, 0.08 * s, 0.10, 0.02 * s, 0.05);
+      fw.closePath();
+      hw.moveTo(0.02 * s, 0.02);
+      hw.bezierCurveTo(0.16 * s, 0.06, 0.30 * s, 0.10, 0.31 * s, 0.17);
+      hw.bezierCurveTo(0.28 * s, 0.25, 0.14 * s, 0.27, 0.04 * s, 0.22);
+      hw.closePath();
+    }
+    return { fw, hw };
+  })();
+  const SPX = 200, SCW = Math.ceil(SPX * 1.18), SCH = Math.ceil(SPX * .78);
+  function mothCanvas(type, seed) {
+    const R = mulberry32(seed), dark = type === 'D';
+    const c = document.createElement('canvas'); c.width = SCW; c.height = SCH;
+    const g = c.getContext('2d'), px = SPX;
+    g.translate(SCW / 2, SCH * .42); g.scale(px, px);
+    const base = dark ? `hsl(30,${5 + R() * 5}%,${12 + R() * 5}%)` : `hsl(42,${7 + R() * 7}%,${79 + R() * 7}%)`;
+    const hind = dark ? `hsl(30,6%,${16 + R() * 4}%)` : `hsl(40,8%,${84 + R() * 5}%)`;
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = px * .035; g.shadowOffsetX = px * .01; g.shadowOffsetY = px * .018;
+    g.fillStyle = hind; g.fill(WP.hw); g.fillStyle = base; g.fill(WP.fw);
+    g.restore();
+    const speck = (path, n, cf) => {
+      g.save(); g.clip(path);
+      for (let i = 0; i < n; i++) { g.fillStyle = cf(); g.beginPath(); g.arc((R() - .5) * 1.1, -0.18 + R() * .46, .003 + R() * R() * .013, 0, 7); g.fill(); }
+      g.restore();
+    };
+    if (!dark) {
+      speck(WP.hw, 260, () => `rgba(60,52,44,${.2 + R() * .45})`);
+      speck(WP.fw, 750, () => `rgba(36,30,25,${.35 + R() * .6})`);
+      g.save(); g.clip(WP.fw); g.strokeStyle = 'rgba(45,38,32,.6)'; g.lineWidth = .011; g.lineJoin = 'round';
+      for (const s of [1, -1]) for (let k = 0; k < 2; k++) {
+        g.beginPath(); const y = -0.07 + k * .1; g.moveTo(0.04 * s, y);
+        for (let x = .08; x <= .5; x += .05) g.lineTo(x * s, y + x * .12 + (R() - .5) * .04);
+        g.stroke();
+      }
+      g.restore();
+      g.strokeStyle = 'rgba(80,68,56,.35)'; g.lineWidth = .008; g.stroke(WP.fw);
+    } else {
+      speck(WP.fw, 180, () => `rgba(120,110,98,${.08 + R() * .18})`);
+      speck(WP.hw, 60, () => `rgba(120,110,98,${.06 + R() * .12})`);
+      g.fillStyle = 'rgba(225,218,200,.85)';
+      for (const s of [1, -1]) { g.beginPath(); g.arc(.035 * s, -.085, .009, 0, 7); g.fill(); }
+      g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = .008; g.stroke(WP.fw);
+    }
+    g.fillStyle = dark ? '#1c1916' : '#bbb3a3';
+    g.beginPath(); g.ellipse(0, .03, .034, .15, 0, 0, 7); g.fill();
+    g.beginPath(); g.arc(0, -.12, .03, 0, 7); g.fill();
+    g.strokeStyle = dark ? '#16130f' : '#6d6356'; g.lineWidth = .007; g.lineCap = 'round';
+    for (const s of [1, -1]) { g.beginPath(); g.moveTo(.01 * s, -.14); g.quadraticCurveTo(.05 * s, -.24, .14 * s, -.26); g.stroke(); }
+    return c;
+  }
+  function ringCanvas() {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    g.strokeStyle = '#f2c14e'; g.lineWidth = 9; g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 6;
+    g.beginPath(); g.arc(64, 64, 50, 0, 7); g.stroke(); return c;
+  }
+
+  // ---------- three.js scene ----------
+  const cv = $('cv');
+  const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const aniso = renderer.capabilities.getMaxAnisotropy();
+
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(50, 1, 0.05, 80);
+  cam.rotation.order = 'YXZ'; cam.position.set(0, EYE_H, 0);
+  const view = { yaw: 0, pitch: 0.05, fov: 50, spin: 0, follow: null };
+  const mv = { f: 0, b: 0, l: 0, r: 0 };
+
+  const skyC = document.createElement('canvas'); skyC.width = 4; skyC.height = 256;
+  const skyTex = new THREE.CanvasTexture(skyC); skyTex.encoding = THREE.sRGBEncoding;
+  scene.background = skyTex;
+  scene.fog = new THREE.Fog(0xdfe6dc, 5, 30);
+
+  const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x4a4030, .8); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff1dc, 1.15);
+  sun.position.set(7, 14, 4); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006;
+  Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 40 });
+  scene.add(sun);
+
+  const BW = 1024, BH = 2048;
+  const birchC = canvasOf(BW, BH, paintBirch, 11);
+  const sootC = canvasOf(BW, BH, paintSoot, 23);
+  const barkC = document.createElement('canvas'); barkC.width = BW; barkC.height = BH;
+  const barkTex = new THREE.CanvasTexture(barkC);
+  barkTex.encoding = THREE.sRGBEncoding; barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping; barkTex.anisotropy = aniso;
+  barkTex.repeat.set(1, TH / 2.8);
+  const bumpTex = new THREE.CanvasTexture(birchC);
+  bumpTex.wrapS = bumpTex.wrapT = THREE.RepeatWrapping; bumpTex.repeat.copy(barkTex.repeat);
+  const barkMat = new THREE.MeshStandardMaterial({ map: barkTex, bumpMap: bumpTex, bumpScale: 0.025, roughness: .95, metalness: 0 });
+
+  const groundTex = new THREE.CanvasTexture(canvasOf(512, 512, paintGround, 3));
+  groundTex.encoding = THREE.sRGBEncoding; groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping; groundTex.repeat.set(30, 30); groundTex.anisotropy = aniso;
+  const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), groundMat);
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  // trunks: a hunting zone the player can walk through, plus a far forest
+  const trunks = [], trunkMeshes = [], zone = [];
+  const TR = mulberry32(77);
+  function addTrunk(x, z, rb, seg) {
+    const rt = rb * .72;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, TH, seg, 1, true), barkMat);
+    mesh.position.set(x, TH / 2, z); mesh.rotation.y = TR() * Math.PI * 2;
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh); trunkMeshes.push(mesh);
+    const t = { x, z, rb, rt, mesh, rAt: y => rb + (rt - rb) * y / TH };
+    mesh.userData.trunk = t; trunks.push(t); return t;
+  }
+  for (let tries = 0; zone.length < 26 && tries < 2000; tries++) {
+    const a = TR() * Math.PI * 2, r = 1.4 + Math.sqrt(TR()) * (ZONE - 1.4), x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (trunks.some(t => Math.hypot(t.x - x, t.z - z) < 1.35)) continue;
+    zone.push(addTrunk(x, z, .17 + TR() * .1, 44));
+  }
+  for (let i = 0, tries = 0; i < 55 && tries < 800; tries++) {
+    const a = TR() * Math.PI * 2, r = BOUND + .8 + TR() * 19, x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (trunks.some(t => Math.hypot(t.x - x, t.z - z) < 1.3)) continue;
+    addTrunk(x, z, .14 + TR() * .14, 20); i++;
+  }
+
+  const grassTex = new THREE.CanvasTexture(grassCanvas()); grassTex.encoding = THREE.sRGBEncoding;
+  const grassMat = new THREE.MeshStandardMaterial({ map: grassTex, alphaTest: .5, side: THREE.DoubleSide, roughness: 1 });
+  const grassGeo = new THREE.PlaneGeometry(.6, .6); grassGeo.translate(0, .3, 0);
+  {
+    const N = 480, grass = new THREE.InstancedMesh(grassGeo, grassMat, N * 2), o = new THREE.Object3D();
+    for (let i = 0; i < N; i++) {
+      const a = TR() * Math.PI * 2, r = .6 + TR() * 26, x = Math.cos(a) * r, z = Math.sin(a) * r, s = .3 + TR() * .4, ry = TR() * 3;
+      for (let k = 0; k < 2; k++) {
+        o.position.set(x, 0, z); o.rotation.set(0, ry + k * Math.PI / 2, 0); o.scale.setScalar(s); o.updateMatrix();
+        grass.setMatrixAt(i * 2 + k, o.matrix);
+      }
+    }
+    scene.add(grass);
+  }
+
+  // canopy: birch branches and leaf clumps (instanced)
+  function leafClumpCanvas() {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), R = mulberry32(9);
+    for (let i = 0; i < 520; i++) {
+      const a = R() * Math.PI * 2, r = Math.pow(R(), .6) * 112, x = 128 + Math.cos(a) * r, y = 128 + Math.sin(a) * r * .8, l = 5 + R() * 6;
+      g.fillStyle = `hsl(${78 + R() * 30},${35 + R() * 25}%,${24 + R() * 26}%)`;
+      g.save(); g.translate(x, y); g.rotate(R() * 6.3);
+      g.beginPath(); g.moveTo(0, -l); g.quadraticCurveTo(l * .8, 0, 0, l); g.quadraticCurveTo(-l * .8, 0, 0, -l); g.fill();
+      g.restore();
+    }
+    return c;
+  }
+  const foliageTex = new THREE.CanvasTexture(leafClumpCanvas()); foliageTex.encoding = THREE.sRGBEncoding;
+  const foliageMat = new THREE.MeshStandardMaterial({ map: foliageTex, alphaTest: .5, side: THREE.DoubleSide, roughness: .9 });
+  {
+    const clumps = [], branches = [], o = new THREE.Object3D(), up = new V3(0, 1, 0);
+    for (const t of trunks) {
+      const n = t.mesh.geometry.parameters.radialSegments > 30 ? 6 : 4;
+      for (let i = 0; i < n; i++) {
+        const y = 5 + TR() * 10, a = TR() * Math.PI * 2, len = .8 + TR() * 1.6, r0 = t.rAt(y) * .8;
+        const base = new V3(t.x + Math.cos(a) * r0, y, t.z + Math.sin(a) * r0);
+        const tip = new V3(t.x + Math.cos(a) * (len + .2), y + len * (.5 + TR() * .5), t.z + Math.sin(a) * (len + .2));
+        branches.push([base, tip]); clumps.push(tip);
+        if (TR() < .6) clumps.push(tip.clone().add(new V3((TR() - .5) * 1.2, -.6 - TR() * .8, (TR() - .5) * 1.2)));
+      }
+    }
+    const bGeo = new THREE.CylinderGeometry(.025, .05, 1, 6, 1, true); bGeo.translate(0, .5, 0);
+    const bm = new THREE.InstancedMesh(bGeo, barkMat, branches.length);
+    branches.forEach(([a, b], i) => {
+      const d = b.clone().sub(a);
+      o.position.copy(a); o.quaternion.setFromUnitVectors(up, d.clone().normalize()); o.scale.set(1, d.length(), 1);
+      o.updateMatrix(); bm.setMatrixAt(i, o.matrix);
+    });
+    bm.castShadow = true; scene.add(bm);
+    const fm = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.4, 2), foliageMat, clumps.length * 3);
+    clumps.forEach((p, i) => {
+      const s = .7 + TR() * .7, ry = TR() * 3;
+      for (let k = 0; k < 3; k++) {
+        o.position.copy(p); o.rotation.set(k === 2 ? -Math.PI / 2 + .3 : 0, ry + k * Math.PI / 2, 0); o.scale.setScalar(s);
+        o.updateMatrix(); fm.setMatrixAt(i * 3 + k, o.matrix);
+      }
+    });
+    scene.add(fm);
+  }
+
+  // a few leaves drifting down around the player
+  const FALL = 36, fallO = new THREE.Object3D(), fl = [];
+  const falling = new THREE.InstancedMesh(new THREE.PlaneGeometry(.05, .04), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: .9 }), FALL);
+  const leafCols = [0xc9a640, 0xa8b04a, 0xd8b85a, 0x8f9a3c].map(c => new THREE.Color(c));
+  function respawnLeaf(L, anyH) {
+    const a = Math.random() * 6.28, r = .5 + Math.random() * 7;
+    L.p.set(cam.position.x + Math.cos(a) * r, anyH ? Math.random() * 7 : 6 + Math.random() * 2, cam.position.z + Math.sin(a) * r);
+  }
+  for (let i = 0; i < FALL; i++) {
+    const L = { p: new V3(), v: .25 + Math.random() * .35, ph: Math.random() * 6, s: [Math.random() * 3, Math.random() * 3, Math.random() * 3] };
+    respawnLeaf(L, true); fl.push(L); falling.setColorAt(i, leafCols[i % 4]);
+  }
+  scene.add(falling);
+  function updateLeaves(dt, now) {
+    const t = now / 1000;
+    for (let i = 0; i < FALL; i++) {
+      const L = fl[i];
+      L.p.y -= L.v * dt; L.p.x += Math.sin(t * 1.1 + L.ph) * .3 * dt; L.p.z += Math.cos(t * .9 + L.ph) * .2 * dt;
+      if (L.p.y < .02) respawnLeaf(L, false);
+      fallO.position.copy(L.p); fallO.rotation.set(t * L.s[0], t * L.s[1], t * L.s[2]); fallO.updateMatrix();
+      falling.setMatrixAt(i, fallO.matrix);
+    }
+    falling.instanceMatrix.needsUpdate = true;
+  }
+
+  const ringTex = new THREE.CanvasTexture(ringCanvas());
+  const mothGeo = new THREE.PlaneGeometry(SCW / SPX, SCH / SPX);
+  mothGeo.translate(0, -0.08 * SCH / SPX, 0);   // body (42% down the sprite) at the origin
+
+  let envQueued = false;
+  function applyEnvironment() {
+    if (envQueued) return; envQueued = true;
+    requestAnimationFrame(() => {
+      envQueued = false;
+      const p = S.pollution, g = barkC.getContext('2d');
+      g.globalAlpha = 1; g.drawImage(birchC, 0, 0);
+      if (p > 0) { g.globalAlpha = p; g.drawImage(sootC, 0, 0); g.globalAlpha = 1; }
+      barkTex.needsUpdate = true;
+      const top = col(0x8fb6d6, 0x7d7f78, p), hor = col(0xdfe6dc, 0xaaa597, p);
+      const sg = skyC.getContext('2d'), gr = sg.createLinearGradient(0, 0, 0, 256);
+      gr.addColorStop(0, '#' + top.getHexString()); gr.addColorStop(.75, '#' + hor.getHexString()); gr.addColorStop(1, '#' + hor.getHexString());
+      sg.fillStyle = gr; sg.fillRect(0, 0, 4, 256); skyTex.needsUpdate = true;
+      scene.fog.color.copy(hor); scene.fog.far = lerp(30, 20, p);
+      sun.intensity = lerp(1.15, .6, p); hemi.intensity = lerp(.8, .7, p);
+      groundMat.color.copy(col(0xffffff, 0x5a5650, p * .9));
+      grassMat.color.copy(col(0xffffff, 0x77736a, p * .8));
+      foliageMat.color.copy(col(0xffffff, 0x8a8a74, p * .8));
+    });
+  }
+
+  // ---------- moths ----------
+  const ray = new THREE.Raycaster();
+  function newMoth(type) {
+    return { type, alive: true, dieT: 0, seed: (Math.random() * 1e9) | 0, scale: .9 + Math.random() * .2, rot: (Math.random() - .5) * 1.2, mesh: null, ring: null, pos: new V3(), n: new V3() };
+  }
+  function disposeMoth(m) {
+    if (m.mesh) { scene.remove(m.mesh); m.mesh.material.map.dispose(); m.mesh.material.dispose(); }
+    if (m.ring) { scene.remove(m.ring); m.ring.material.dispose(); }
+  }
+  function makeMesh(m) {
+    const tex = new THREE.CanvasTexture(mothCanvas(m.type, m.seed));
+    tex.encoding = THREE.sRGBEncoding; tex.anisotropy = aniso;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: .04, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    m.mesh = new THREE.Mesh(mothGeo, mat); m.mesh.receiveShadow = true; m.mesh.userData.moth = m;
+    scene.add(m.mesh);
+  }
+  function placeMoths() {
+    const placed = [];
+    for (const m of S.moths) {
+      let pos, n;
+      for (let tries = 0; tries < 80; tries++) {
+        const t = zone[Math.random() * zone.length | 0], a = Math.random() * Math.PI * 2;
+        const y = .4 + Math.random() * 2.8, r = t.rAt(y) + .004;
+        n = new V3(Math.cos(a), 0, Math.sin(a)); pos = new V3(t.x + n.x * r, y, t.z + n.z * r);
+        if (!placed.some(p => p.distanceTo(pos) < WING * 1.6)) break;
+      }
+      placed.push(pos); m.pos.copy(pos); m.n.copy(n);
+      m.mesh.position.copy(pos); m.mesh.lookAt(pos.clone().add(n)); m.mesh.rotateZ(m.rot);
+      m.mesh.scale.setScalar(WING * m.scale);
+    }
+  }
+  function buildPopulation() {
+    S.moths.forEach(disposeMoth);
+    S.moths = [];
+    for (let i = 0; i < S.nL; i++) S.moths.push(newMoth('L'));
+    for (let i = 0; i < S.nD; i++) S.moths.push(newMoth('D'));
+    S.moths.forEach(makeMesh);
+    placeMoths();
+  }
+  function showRings(on) {
+    for (const m of S.moths) {
+      if (on && m.alive && !m.ring) {
+        m.ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex, depthTest: false, transparent: true }));
+        m.ring.position.copy(m.pos).addScaledVector(m.n, .01); m.ring.scale.setScalar(WING * 2.6); m.ring.renderOrder = 10;
+        scene.add(m.ring);
+      }
+      if (m.ring) m.ring.visible = on && m.alive;
+    }
+  }
+
+  // ---------- bird ----------
+  const bird = (() => {
+    const g = new THREE.Group();
+    const brown = new THREE.MeshStandardMaterial({ color: 0x6f5b44, roughness: .9 });
+    const belly = new THREE.MeshStandardMaterial({ color: 0xd8c294, roughness: .9 });
+    const black = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .6 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), brown); body.scale.set(.05, .05, .09); g.add(body);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), belly); chest.scale.set(.042, .04, .07); chest.position.set(0, -.014, .012); g.add(chest);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.038, 14, 10), black); head.position.set(0, .03, .085); g.add(head);
+    const cheek = new THREE.Mesh(new THREE.SphereGeometry(.026, 10, 8), belly); cheek.position.set(0, .022, .1); cheek.scale.set(1.35, .8, .8); g.add(cheek);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(.011, .035, 8), black); beak.rotation.x = Math.PI / 2; beak.position.set(0, .025, .135); g.add(beak);
+    const tailGeo = new THREE.PlaneGeometry(.05, .09); tailGeo.rotateX(-Math.PI / 2);
+    const tail = new THREE.Mesh(tailGeo, brown); tail.position.set(0, .008, -.12); g.add(tail);
+    const wingGeo = new THREE.PlaneGeometry(.16, .08); wingGeo.rotateX(-Math.PI / 2); wingGeo.translate(.08, 0, -.01);
+    const wmat = brown.clone(); wmat.side = THREE.DoubleSide;
+    const wl = new THREE.Group(), wr = new THREE.Group();
+    wl.add(new THREE.Mesh(wingGeo, wmat)); wl.position.set(.03, .02, 0);
+    const wrm = new THREE.Mesh(wingGeo, wmat); wrm.scale.x = -1; wr.add(wrm); wr.position.set(-.03, .02, 0);
+    g.add(wl, wr); g.visible = false; g.scale.setScalar(1.6);
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    scene.add(g);
+    return { g, wl, wr, phase: 'idle', t0: 0, A: new V3(), B: new V3(), C: new V3(), target: null };
+  })();
+  const bez = (A, C, B, t) => new V3().copy(A).multiplyScalar((1 - t) * (1 - t)).addScaledVector(C, 2 * (1 - t) * t).addScaledVector(B, t * t);
+
+  // ---------- effects ----------
+  const fx = [];
+  function hitFx(m, now) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex, depthTest: false, transparent: true }));
+    s.position.copy(m.pos); s.renderOrder = 11; scene.add(s);
+    const bits = [];
+    for (let i = 0; i < 8; i++) {
+      const b = new THREE.Mesh(new THREE.PlaneGeometry(.012, .009), new THREE.MeshBasicMaterial({ color: m.type === 'D' ? 0x2a2622 : 0xd6d1c4, side: THREE.DoubleSide, transparent: true }));
+      b.position.copy(m.pos); b.userData.v = new V3().copy(m.n).multiplyScalar(.3 + Math.random() * .3).add(new V3((Math.random() - .5) * .5, Math.random() * .3, (Math.random() - .5) * .5));
+      scene.add(b); bits.push(b);
+    }
+    fx.push({ s, bits, t: now });
+  }
+  function missFx(x, y) {
+    const d = document.createElement('div'); d.className = 'miss'; d.style.left = x + 'px'; d.style.top = y + 'px';
+    $('stage').appendChild(d); setTimeout(() => d.remove(), 400);
+  }
+
+  // ---------- predation ----------
+  function detectWeight(m) {
+    const Lb = .80 - .60 * S.pollution, Lm = m.type === 'L' ? .78 : .15;
+    return .25 + Math.abs(Lm - Lb) * 2.5;
+  }
+  function weightedPick(list) {
+    let sum = 0; for (const m of list) sum += detectWeight(m);
+    let r = Math.random() * sum;
+    for (const m of list) { r -= detectWeight(m); if (r <= 0) return m; }
+    return list[list.length - 1];
+  }
+  function eat(m, now) {
+    m.alive = false; m.dieT = now; S.caught++;
+    hitFx(m, now); peckSound(true);
+    if (S.caught >= S.target) setTimeout(endHunt, S.auto ? 700 : 400);
+  }
+  function occluded(p) {
+    const dist = p.distanceTo(cam.position), dir = p.clone().sub(cam.position).normalize();
+    ray.set(cam.position, dir); ray.far = dist;
+    const hit = ray.intersectObjects(trunkMeshes, false)[0];
+    return hit && hit.distance < dist - .03;
+  }
+  // nearest visible live moth to a screen point, with generous tolerance
+  function pickMoth(clientX, clientY) {
+    const r = cv.getBoundingClientRect(), x = clientX - r.left, y = clientY - r.top;
+    const f = r.height / 2 / Math.tan(cam.fov * Math.PI / 360);
+    let best = null, bd = 1e9;
+    for (const m of S.moths) {
+      if (!m.alive) continue;
+      const v = m.pos.clone().project(cam);
+      if (v.z > 1 || v.z < -1) continue;
+      const sx = (v.x + 1) / 2 * r.width, sy = (1 - v.y) / 2 * r.height;
+      const dist = m.pos.distanceTo(cam.position), size = WING * m.scale * f / dist;
+      const d = Math.hypot(sx - x, sy - y), tol = Math.max(22, size * .8);
+      if (d > tol || d >= bd || occluded(m.pos)) continue;
+      bd = d; best = m;
+    }
+    return { best, x, y };
+  }
+  function shoot(clientX, clientY) {
+    if (S.caught >= S.target) return;
+    const { best, x, y } = pickMoth(clientX, clientY);
+    if (best) eat(best, performance.now()); else { S.misses++; missFx(x, y); peckSound(false); }
+  }
+  // click-to-explain outside of hunting
+  function inspect(clientX, clientY) {
+    const { best } = pickMoth(clientX, clientY);
+    const dark = S.pollution >= .5, mid = S.pollution >= .25 && S.pollution < .6;
+    if (best) {
+      const L = best.type === 'L', share = Math.round((L ? S.nL : S.nD) / Math.max(1, S.nL + S.nD) * 100);
+      const title = L ? 'Bướm dạng sáng (typica)' : 'Bướm dạng tối (carbonaria)';
+      let txt = L
+        ? (dark ? 'Trên vỏ cây ám muội than, đôi cánh sáng lốm đốm này nổi bật hẳn lên. Chim phát hiện ra nó rất dễ.' : mid ? 'Vỏ cây đang xám dần, nên con bướm này bắt đầu dễ thấy hơn so với khi rừng còn sạch.' : 'Hoa văn lốm đốm trắng đen giống hệt lớp địa y trên vỏ bạch dương. Đây là ngụy trang: chim rất khó nhận ra nó.')
+        : (dark ? 'Cánh đen hòa lẫn vào vỏ cây ám khói. Đây là ngụy trang: chim rất khó nhận ra nó.' : mid ? 'Vỏ cây đang sẫm dần, nên con bướm tối này bắt đầu khó thấy hơn.' : 'Trên vỏ bạch dương trắng, đôi cánh đen này như một vết mực, chim thấy ngay.');
+      txt += ` Dạng này chiếm ${share}% quần thể hiện tại.`;
+      if (S.state === 'result') txt = 'Con này đã sống sót qua lượt săn. ' + txt;
+      showPop(title, txt, clientX, clientY, null); return;
+    }
+    const r = cv.getBoundingClientRect();
+    const ndc = new THREE.Vector2((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
+    ray.setFromCamera(ndc, cam); ray.far = 40;
+    const hit = ray.intersectObjects(trunkMeshes, false)[0];
+    if (hit) {
+      showPop('Thân cây bạch dương', S.pollution < .25
+        ? 'Vỏ trắng như giấy, có các vết gạch ngang (bì khổng) và nhiều mảng địa y xám xanh. Đây là “phông nền” của bướm trước Cách mạng công nghiệp.'
+        : S.pollution < .6
+        ? 'Muội than đã bám một phần lên vỏ cây và địa y bắt đầu chết. Vỏ cây chuyển sang màu xám.'
+        : 'Muội than từ nhà máy phủ kín vỏ cây, địa y đã chết hết. Thân cây gần như đen. Chính sự thay đổi này làm đảo ngược lợi thế ngụy trang của hai dạng bướm.', clientX, clientY, null);
+    } else hidePop();
+  }
+
+  // ---------- look & move controls ----------
+  const ptrs = new Map(); let moved = 0, pinch = null;
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) moved = 0;
+    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), fov: view.fov }; moved = 999; }
+  });
+  cv.addEventListener('pointermove', e => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) {
+      moved += Math.abs(dx) + Math.abs(dy);
+      if (moved > 6) {
+        cv.classList.add('drag'); view.follow = null; hidePop();
+        const k = 0.0042 * view.fov / 50;
+        view.yaw += dx * k; view.pitch = clamp(view.pitch + dy * k, -.6, .75);
+      }
+    } else if (ptrs.size === 2 && pinch) {
+      const [a, b] = [...ptrs.values()];
+      view.fov = clamp(pinch.fov * pinch.d / Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), 16, 60);
+    }
+  });
+  function up(e) {
+    if (!ptrs.has(e.pointerId)) return;
+    if (ptrs.size === 1 && moved <= 6 && e.type === 'pointerup') {
+      if (S.state === 'hunt' && !S.auto) shoot(e.clientX, e.clientY);
+      else if (S.state !== 'hunt') inspect(e.clientX, e.clientY);
+    }
+    ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null;
+    if (!ptrs.size) cv.classList.remove('drag');
+  }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { e.preventDefault(); view.fov = clamp(view.fov + e.deltaY * .03, 16, 60); }, { passive: false });
+
+  function holdBtn(b, on, off) {
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add('on'); on(); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => { b.classList.remove('on'); off(); }));
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  document.querySelectorAll('#pad [data-mv]').forEach(b => holdBtn(b, () => { mv[b.dataset.mv] = 1; hidePop(); }, () => mv[b.dataset.mv] = 0));
+  holdBtn($('nav-left'), () => { view.spin = 1; view.follow = null; }, () => view.spin = 0);
+  holdBtn($('nav-right'), () => { view.spin = -1; view.follow = null; }, () => view.spin = 0);
+  $('nav-in').addEventListener('click', () => view.fov = clamp(view.fov - 8, 16, 60));
+  $('nav-out').addEventListener('click', () => view.fov = clamp(view.fov + 8, 16, 60));
+
+  const keys = new Set();
+  const typing = e => e.target.closest && e.target.closest('input, textarea, select');
+  window.addEventListener('keydown', e => {
+    if (typing(e)) return;
+    const k = e.key.toLowerCase();
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'q', 'e'].includes(k)) {
+      if (e.target.closest && e.target.closest('button') && k.startsWith('arrow')) return;
+      e.preventDefault(); keys.add(k); view.follow = null;
+    }
+    if (k === '+' || k === '=') view.fov = clamp(view.fov - 6, 16, 60);
+    if (k === '-') view.fov = clamp(view.fov + 6, 16, 60);
+  });
+  window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur', () => keys.clear());
+
+  function movePlayer(dt) {
+    const K = k => keys.has(k) ? 1 : 0;
+    const fwd = K('w') + K('arrowup') + mv.f - K('s') - K('arrowdown') - mv.b;
+    const str = K('d') + mv.r - K('a') - mv.l;
+    const turn = K('arrowleft') + K('q') - K('arrowright') - K('e') + view.spin;
+    view.yaw += turn * 1.4 * dt * (view.fov / 50);
+    if (!fwd && !str) return;
+    const sy = Math.sin(view.yaw), cy = Math.cos(view.yaw), sp = 2.4 * dt / (Math.abs(fwd) && Math.abs(str) ? Math.SQRT2 : 1);
+    const p = cam.position;
+    p.x += (-sy * fwd + cy * str) * sp;
+    p.z += (-cy * fwd - sy * str) * sp;
+    for (const t of zone) {
+      const dx = p.x - t.x, dz = p.z - t.z, d = Math.hypot(dx, dz), min = t.rb + .35;
+      if (d < min && d > 1e-4) { p.x = t.x + dx / d * min; p.z = t.z + dz / d * min; }
+    }
+    const rr = Math.hypot(p.x, p.z);
+    if (rr > BOUND) { p.x *= BOUND / rr; p.z *= BOUND / rr; }
+    p.y = EYE_H + Math.sin(performance.now() / 140) * .012;   // gentle step bob
+    hidePop();
+  }
+  function lookAtPoint(p) {
+    const d = p.clone().sub(cam.position);
+    return { yaw: Math.atan2(-d.x, -d.z), pitch: Math.atan2(d.y, Math.hypot(d.x, d.z)) };
+  }
+
+  // ---------- minimap ----------
+  const mini = $('mini'), mg = mini.getContext('2d');
+  function drawMini() {
+    const W = mini.width, c = W / 2, sc = c / (BOUND + 1.5);
+    mg.clearRect(0, 0, W, W);
+    mg.save(); mg.beginPath(); mg.arc(c, c, c - 2, 0, 7); mg.clip();
+    mg.fillStyle = 'rgba(30,40,32,.55)'; mg.fillRect(0, 0, W, W);
+    mg.strokeStyle = 'rgba(188,203,158,.5)'; mg.setLineDash([6, 6]); mg.lineWidth = 2;
+    mg.beginPath(); mg.arc(c, c, ZONE * sc, 0, 7); mg.stroke(); mg.setLineDash([]);
+    mg.fillStyle = S.pollution > .5 ? '#6b665f' : '#e2ded3';
+    for (const t of zone) { mg.beginPath(); mg.arc(c + t.x * sc, c + t.z * sc, 5, 0, 7); mg.fill(); }
+    if (S.state === 'result' && S.showSurv) {
+      mg.fillStyle = '#f2c14e';
+      for (const m of S.moths) if (m.alive) { mg.beginPath(); mg.arc(c + m.pos.x * sc, c + m.pos.z * sc, 3.2, 0, 7); mg.fill(); }
+    }
+    const p = cam.position, a = view.yaw;
+    mg.translate(c + p.x * sc, c + p.z * sc); mg.rotate(-a);
+    mg.fillStyle = 'rgba(188,203,158,.25)'; mg.beginPath(); mg.moveTo(0, 0); mg.arc(0, 0, 40, -Math.PI / 2 - .45, -Math.PI / 2 + .45); mg.fill();
+    mg.fillStyle = '#bccb9e'; mg.strokeStyle = '#18200f'; mg.lineWidth = 2;
+    mg.beginPath(); mg.moveTo(0, -12); mg.lineTo(8, 8); mg.lineTo(0, 4); mg.lineTo(-8, 8); mg.closePath(); mg.fill(); mg.stroke();
+    mg.restore();
+  }
+
+  // ---------- resize ----------
+  function resize() {
+    const r = $('stage').getBoundingClientRect();
+    if (r.width < 10 || r.height < 10) return;
+    renderer.setSize(r.width, r.height, false);
+    cam.aspect = r.width / r.height; cam.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe($('stage'));
+
+  // ---------- flow ----------
+  function show(sec) {
+    S.view = sec;
+    ['setup', 'hunt', 'result', 'apply'].forEach(s => $('sec-' + s).hidden = s !== sec);
+    $('sec-chart').hidden = sec === 'apply';
+    hidePop();
+  }
+  let toastT = 0;
+  function toast(msg, ms = 2800) { const t = $('toast'); t.textContent = msg; t.classList.remove('off'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('off'), ms); }
+
+  function startHunt(auto) {
+    if (!auto && !S.pred) { $('pred-err').hidden = false; return; }
+    if (S.nL + S.nD < 2) return;
+    S.state = 'hunt'; S.auto = auto; S.caught = 0; S.misses = 0; S.timeLeft = S.huntTime;
+    S.target = Math.max(1, Math.floor(S.total * S.eatFrac)); S.sL = S.nL; S.sD = S.nD;
+    buildPopulation();
+    bird.phase = 'idle'; S.nextPeck = performance.now() + 900; S.huntEnd = performance.now() + S.huntTime * 1000;
+    $('h-target').textContent = $('hud-target').textContent = S.target;
+    $('h-tip').textContent = auto
+      ? 'Con chim đang săn. Góc nhìn sẽ tự quay theo nó (em vẫn có thể đi lại). Hãy để ý xem nó bắt dạng bướm nào nhiều hơn.'
+      : `Em là chim! Đi quanh các thân cây và ăn ${S.target} con bướm em phát hiện được. Bướm đậu ở mọi phía của thân cây, nhớ đi vòng ra sau.`;
+    $('h-keys').hidden = auto; $('btn-stop').textContent = auto ? 'Dừng chim lại' : 'Kết thúc lượt săn';
+    $('hud-hunt').hidden = false; $('hud-pop').hidden = true;
+    show('hunt'); syncControls();
+    toast(auto ? 'Con chim đang săn mồi…' : 'Em là chim! Đi lại bằng W A S D, kéo để nhìn, nhấp vào bướm để ăn.', 3400);
+    if (window.matchMedia('(max-width: 860px)').matches) $('stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function reproduce(eL, eD) {
+    const alive = eL + eD;
+    let D = alive ? Math.round(S.total * eD / alive) : 0, L = S.total - D, toD = 0, toL = 0;
+    if (S.mut > 0) {
+      for (let i = 0; i < L; i++) if (Math.random() < S.mut) toD++;
+      for (let i = 0; i < D; i++) if (Math.random() < S.mut) toL++;
+      L += toL - toD; D += toD - toL;
+    }
+    return { L, D, toD, toL };
+  }
+  function endHunt() {
+    if (S.state !== 'hunt') return;
+    S.state = 'result'; bird.g.visible = false; bird.phase = 'idle'; view.follow = null;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});   // show the results panel
+    const eL = S.moths.filter(m => m.alive && m.type === 'L').length;
+    const eD = S.moths.filter(m => m.alive && m.type === 'D').length;
+    S.history.push({ gen: S.gen, p: S.pollution, sL: S.sL, sD: S.sD, eL, eD });
+    S.next = reproduce(eL, eD);
+    $('hud-hunt').hidden = true; $('hud-pop').hidden = false;
+    showRings(S.showSurv);
+    renderResult(eL, eD);
+    show('result'); syncControls(); drawChart();
+    toast('Hết lượt! Vòng vàng đánh dấu những con em bỏ sót (chấm vàng trên bản đồ nhỏ). Đi tìm và nhấp vào chúng!', 4500);
+  }
+
+  const QUIZ = [
+    { q: 'Vì sao hai dạng bướm có tỉ lệ sống sót khác nhau?', o: [
+      ['Dạng tối bay nhanh hơn nên trốn thoát được.', 0],
+      ['Màu cánh gần với màu vỏ cây giúp bướm khó bị chim phát hiện.', 1],
+      ['Bướm tự đổi màu cánh cho hợp với vỏ cây.', 0]],
+      why: 'Ban ngày bướm đậu yên trên thân cây. Con nào có màu gần với vỏ cây thì chim (và em) khó thấy hơn, nên sống sót và sinh sản nhiều hơn. Bướm không tự đổi màu được: màu cánh do gen quy định.' },
+    { q: 'Trong mô phỏng này, cái gì trực tiếp “chọn lọc” bướm?', o: [
+      ['Bụi than làm bướm sáng bị ngộ độc.', 0],
+      ['Chim ăn côn trùng, tức là em.', 1],
+      ['Nhiệt độ của khu rừng.', 0]],
+      why: 'Bụi than chỉ làm đổi màu vỏ cây. Tác nhân chọn lọc là chim săn mồi: chúng ăn những con dễ thấy và để sót những con ngụy trang tốt.' },
+    { q: 'Bụi than có làm bướm sáng biến thành bướm tối không?', o: [
+      ['Có, bướm sáng sống lâu trong bụi sẽ sẫm màu dần.', 0],
+      ['Không. Dạng tối đã có sẵn nhờ đột biến; môi trường chỉ giữ lại dạng phù hợp.', 1]],
+      why: 'Biến dị (dạng tối) xuất hiện ngẫu nhiên do đột biến, trước cả khi môi trường thay đổi. Chọn lọc tự nhiên không tạo ra biến dị mà chỉ sàng lọc những biến dị đã có.' },
+    { q: 'Nếu nhà máy ngừng xả khói và vỏ cây sạch trở lại, điều gì có thể xảy ra?', o: [
+      ['Tỉ lệ dạng sáng tăng trở lại qua nhiều thế hệ.', 1],
+      ['Dạng tối vẫn chiếm ưu thế mãi mãi.', 0],
+      ['Mọi con bướm chuyển sang màu sáng ngay lập tức.', 0]],
+      why: 'Đây chính là điều đã xảy ra ở Anh sau Luật Không khí sạch (1956): dạng sáng dần chiếm ưu thế trở lại. Hãy kéo thanh bụi than về 0% rồi săn tiếp để kiểm chứng.' },
+    { q: 'Kết quả mỗi nhóm có thể khác nhau. Làm sao để kết luận đáng tin hơn?', o: [
+      ['Chỉ cần một lượt săn là đủ.', 0],
+      ['Lặp lại qua nhiều thế hệ và so sánh số liệu của nhiều nhóm.', 1]],
+      why: 'Mỗi lượt săn có yếu tố may rủi. Xu hướng thật chỉ lộ rõ khi lặp lại nhiều lần. Hãy xem biểu đồ qua nhiều thế hệ.' }
+  ];
+
+  // renders one multiple-choice card; onAnswer(firstTryCorrect) fires once
+  function mcq(box, Q, onAnswer) {
+    const qp = document.createElement('p'); qp.className = 'q'; qp.textContent = Q.q; box.appendChild(qp);
+    let tries = 0;
+    Q.o.forEach(([txt, ok]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = txt;
+      b.addEventListener('click', () => {
+        tries++;
+        b.classList.add(ok ? 'correct' : 'wrong');
+        if (ok) {
+          box.querySelectorAll('.opt').forEach(x => x.disabled = true);
+          const w = document.createElement('p'); w.className = 'why'; w.innerHTML = '<b>Giải thích:</b> '; w.appendChild(document.createTextNode(Q.why)); box.appendChild(w);
+          onAnswer && onAnswer(tries === 1);
+        } else b.disabled = true;
+      });
+      box.appendChild(b);
+    });
+  }
+  function renderQuiz() {
+    const box = $('quiz');
+    box.innerHTML = '<span class="label">Câu hỏi suy luận</span>';
+    mcq(box, QUIZ[(S.gen - 1) % QUIZ.length]);
+  }
+
+  function renderResult(eL, eD) {
+    const rL = S.sL ? eL / S.sL : null, rD = S.sD ? eD / S.sD : null;
+    const pct = r => r === null ? '–' : Math.round(r * 100) + '%';
+    $('t-L').textContent = pct(rL); $('t-D').textContent = pct(rD);
+    $('f-L').style.width = '0'; $('f-D').style.width = '0';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $('f-L').style.width = (rL || 0) * 100 + '%'; $('f-D').style.width = (rD || 0) * 100 + '%';
+    }));
+    $('res-note').textContent = `Sáng: ${S.sL} → ${eL} con · Tối: ${S.sD} → ${eD} con` + (S.auto ? '' : ` · mổ trượt ${S.misses} lần`);
+    let win = null;
+    if (rL !== null && rD !== null) win = Math.abs(rL - rD) < .1 ? 'E' : rL > rD ? 'L' : 'D';
+    const v = $('verdict'), names = { L: 'dạng sáng', D: 'dạng tối', E: 'hai dạng gần như nhau' };
+    const bgWord = S.pollution < .35 ? 'vỏ cây sáng màu' : S.pollution < .65 ? 'vỏ cây xám' : 'vỏ cây phủ muội than';
+    if (!win) { v.className = 'verdict'; v.innerHTML = 'Quần thể chỉ còn một dạng bướm.<span>Không thể so sánh. Hãy làm lại với cả hai dạng.</span>'; }
+    else if (S.pred && !S.auto) {
+      const ok = S.pred === win;
+      v.className = 'verdict ' + (ok ? 'ok' : 'no');
+      v.innerHTML = (ok ? 'Dự đoán của em đúng.' : 'Kết quả khác với dự đoán.') + '<span></span>';
+      v.querySelector('span').textContent = `Trên ${bgWord}, ${names[win]} sống sót tốt hơn.` + (ok ? '' : ' Đi tìm các vòng vàng trên thân cây để thấy vì sao em bỏ sót chúng.');
+    } else {
+      v.className = 'verdict'; v.innerHTML = 'Chim đã săn xong.<span></span>';
+      v.querySelector('span').textContent = `Trên ${bgWord}, ${names[win]} sống sót tốt hơn.`;
+    }
+    const mt = S.next.toD || S.next.toL ? ` Trong đó có ${S.next.toD ? S.next.toD + ' con tối sinh ra từ bố mẹ sáng' : ''}${S.next.toD && S.next.toL ? ' và ' : ''}${S.next.toL ? S.next.toL + ' con sáng sinh ra từ bố mẹ tối' : ''} (biến dị).` : '';
+    $('next-note').textContent = `${eL + eD} con sống sót giao phối và sinh ra ${S.total} con, giữ nguyên tỉ lệ màu: ${S.next.L} sáng, ${S.next.D} tối.` + mt;
+    renderQuiz();
+  }
+
+  function nextGen() {
+    S.gen++; S.nL = S.next.L; S.nD = S.next.D; S.next = null;
+    S.state = 'setup'; S.pred = null;
+    buildPopulation();
+    $('setup-msg').hidden = true;
+    show('setup'); syncControls(); drawChart();
+  }
+  function simGen(year) {
+    const pop = [];
+    for (let k = 0; k < S.nL; k++) pop.push({ type: 'L' });
+    for (let k = 0; k < S.nD; k++) pop.push({ type: 'D' });
+    const target = Math.max(1, Math.floor(S.total * S.eatFrac));
+    for (let k = 0; k < target; k++) weightedPick(pop.filter(m => !m.dead)).dead = true;
+    const eL = pop.filter(m => !m.dead && m.type === 'L').length, eD = pop.filter(m => !m.dead && m.type === 'D').length;
+    const h = { gen: S.gen, p: S.pollution, sL: S.nL, sD: S.nD, eL, eD };
+    if (year) h.year = year;
+    S.history.push(h);
+    const nx = reproduce(eL, eD); S.nL = nx.L; S.nD = nx.D; S.gen++;
+  }
+  function fastRun(n) {
+    for (let i = 0; i < n; i++) {
+      if ((!S.nL || !S.nD) && !S.mut) break;
+      simGen(null);
+    }
+    S.pred = null; buildPopulation(); syncControls(); drawChart();
+    const m = $('setup-msg'); m.hidden = false;
+    m.textContent = (!S.nL || !S.nD) && !S.mut
+      ? `Một dạng bướm đã biến mất khỏi quần thể ở thế hệ ${S.gen}. Chọn lọc dừng lại vì không còn biến dị để chọn.`
+      : `Đã để chim tự săn đến thế hệ ${S.gen}. Xem biểu đồ bên dưới.`;
+  }
+  // soot level through British history (≈5 years per generation)
+  const polAt = y => y < 1850 ? 0 : y < 1900 ? (y - 1850) / 50 * .95 : y < 1956 ? .95 : y < 1976 ? .95 - (y - 1956) / 20 * .88 : .03;
+  function runHistory() {
+    const keepMut = S.mut;
+    Object.assign(S, { gen: 1, history: [], nL: 39, nD: 1, next: null, pred: null }); S.total = 40;
+    S.mut = Math.max(S.mut, .01);
+    for (let i = 0; i < 36; i++) { const y = 1820 + i * 5; S.pollution = polAt(y); simGen(y); }
+    S.mut = keepMut;
+    applyEnvironment(); buildPopulation(); syncControls(); drawChart();
+    const m = $('setup-msg'); m.hidden = false;
+    m.textContent = `Đã tái hiện 36 thế hệ (1820–2000). Quan sát biểu đồ: bướm tối gần như không có lúc rừng còn sạch, tăng vọt khi khói than phủ kín vỏ cây, rồi giảm dần sau Luật Không khí sạch 1956. Bây giờ là năm 2000: em có thể săn tiếp để kiểm chứng.`;
+    toast('Đã tái hiện lịch sử nước Anh 1820–2000. Xem biểu đồ bên phải.', 3500);
+    if (window.matchMedia('(max-width: 860px)').matches) $('sec-chart').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- application questions ----------
+  const APPLY = [
+    { tag: 'Y học', q: 'Một người bị viêm họng, uống kháng sinh được 2 ngày thấy đỡ nên tự ý ngừng thuốc. Vì sao việc này làm vi khuẩn kháng thuốc ngày càng nhiều?', o: [
+      ['Kháng sinh làm vi khuẩn bị đột biến thành dạng kháng thuốc.', 0],
+      ['Những vi khuẩn còn sống sót thường là những con có sẵn khả năng chịu thuốc tốt hơn; chúng tiếp tục sinh sản và chiếm ưu thế.', 1],
+      ['Cơ thể người bệnh đã “quen thuốc” nên thuốc hết tác dụng.', 0]],
+      why: 'Giống như chim chỉ bắt được bướm dễ thấy, kháng sinh chỉ diệt được vi khuẩn nhạy cảm. Ngừng thuốc sớm để lại những con chịu thuốc tốt nhất. Chúng sinh sản rất nhanh (khoảng 20 phút một thế hệ) và truyền gen kháng thuốc cho thế hệ sau.' },
+    { tag: 'Nông nghiệp', q: 'Một vùng trồng rau phun cùng một loại thuốc trừ sâu suốt nhiều năm và thấy thuốc ngày càng kém hiệu quả. Giải thích nào đúng?', o: [
+      ['Sâu “học” được cách tránh thuốc rồi dạy lại cho con.', 0],
+      ['Thuốc bị hết hạn sử dụng.', 0],
+      ['Thuốc đã giữ lại những con sâu có biến dị chịu thuốc; qua nhiều thế hệ, tỉ lệ sâu kháng thuốc tăng dần.', 1]],
+      why: 'Thuốc trừ sâu đóng vai trò giống con chim trong mô phỏng: nó là tác nhân chọn lọc. Những tính trạng học được trong đời một cá thể không di truyền. Chỉ biến dị có trong gen mới được truyền lại.' },
+    { tag: 'Nông nghiệp', q: 'Để hạn chế sâu kháng thuốc, người nông dân nên làm gì?', o: [
+      ['Tăng gấp đôi liều thuốc mỗi mùa.', 0],
+      ['Luân phiên các loại thuốc khác nhau, kết hợp biện pháp sinh học (thiên địch, bẫy) và chỉ phun khi cần.', 1],
+      ['Phun thuốc liên tục mỗi ngày kể cả khi không có sâu.', 0]],
+      why: 'Tăng liều hay phun liên tục chỉ làm áp lực chọn lọc mạnh hơn, nên dạng kháng thuốc chiếm ưu thế nhanh hơn. Luân phiên thuốc và dùng thiên địch làm cho không một biến dị nào luôn luôn có lợi.' },
+    { tag: 'Tính toán', q: 'Một quần thể có 800 bướm sáng và 200 bướm tối sống trong rừng ô nhiễm. Chim ăn 50% số bướm sáng và 10% số bướm tối. Trong số bướm sống sót, bướm tối chiếm khoảng bao nhiêu phần trăm?', o: [
+      ['20%', 0], ['31%', 1], ['45%', 0], ['50%', 0]],
+      why: 'Còn lại 800 × 50% = 400 con sáng và 200 × 90% = 180 con tối. Tỉ lệ bướm tối = 180 ÷ (400 + 180) ≈ 31%. Chỉ sau một thế hệ, tỉ lệ bướm tối đã tăng từ 20% lên 31%.' },
+    { tag: 'Phân biệt', q: 'Tắc kè hoa đổi sang màu xanh khi bò lên lá cây. Đây có phải là ví dụ về chọn lọc tự nhiên không?', o: [
+      ['Có, vì nó giúp tắc kè ngụy trang.', 0],
+      ['Không. Đó là phản ứng tức thời của một cá thể, không làm thay đổi thành phần gen của quần thể qua các thế hệ.', 1]],
+      why: 'Chọn lọc tự nhiên diễn ra trên cả quần thể qua nhiều thế hệ: cá thể mang biến dị có lợi sống sót và sinh sản nhiều hơn. Bướm sâu đo không đổi màu được. Chính tỉ lệ các dạng bướm trong quần thể mới thay đổi.' },
+    { tag: 'Dự đoán', q: 'Thỏ tuyết thay lông trắng vào mùa đông. Nếu khí hậu ấm lên làm tuyết tan sớm trong khi thỏ vẫn còn lông trắng, điều gì có thể xảy ra qua nhiều thế hệ?', o: [
+      ['Những con thỏ thay lông nâu sớm hơn sẽ ít bị cáo bắt hơn, nên tỉ lệ thỏ thay lông sớm tăng dần.', 1],
+      ['Tất cả thỏ sẽ tự thay lông sớm hơn ngay trong năm đó.', 0],
+      ['Không có gì thay đổi vì cáo cũng thay lông.', 0]],
+      why: 'Đây chính là tình huống của bướm sâu đo, chỉ khác loài: “phông nền” thay đổi nên con vật mang màu không hợp bị săn nhiều hơn. Chọn lọc sẽ ưu tiên biến dị phù hợp, nếu biến dị đó có sẵn trong quần thể.' },
+    { tag: 'Khái niệm', q: 'Điều nào sau đây KHÔNG cần thiết để chọn lọc tự nhiên xảy ra?', o: [
+      ['Các cá thể trong quần thể có biến dị di truyền.', 0],
+      ['Biến dị đó ảnh hưởng đến khả năng sống sót hoặc sinh sản.', 0],
+      ['Sinh vật mong muốn và cố gắng thay đổi bản thân.', 1],
+      ['Có nhiều cá thể được sinh ra hơn số có thể sống sót.', 0]],
+      why: 'Chọn lọc tự nhiên không có mục đích và không phụ thuộc vào “ý muốn” của sinh vật. Chỉ cần có biến dị di truyền, biến dị ảnh hưởng đến sống sót hoặc sinh sản, và sự đào thải, thì quần thể sẽ tự thay đổi.' },
+  ];
+  function openQuestions() {
+    const list = [];
+    const h = S.history[0];
+    if (h) {
+      const rL = h.sL ? Math.round(h.eL / h.sL * 100) : 0, rD = h.sD ? Math.round(h.eD / h.sD * 100) : 0;
+      const dStart = Math.round(h.sD / (h.sL + h.sD) * 100), dEnd = Math.round(h.eD / Math.max(1, h.eL + h.eD) * 100);
+      list.push({ tag: 'Số liệu của em', q: `Ở thế hệ ${h.gen} (bụi than ${Math.round(h.p * 100)}%), bảng số liệu ghi: dạng sáng ${h.sL} → ${h.eL} con, dạng tối ${h.sD} → ${h.eD} con. Hãy tính tỉ lệ sống sót của mỗi dạng và cho biết tỉ lệ bướm tối trong quần thể đã thay đổi thế nào.`,
+        a: `Tỉ lệ sống sót: dạng sáng = ${h.eL}/${h.sL} ≈ ${rL}%; dạng tối = ${h.eD}/${h.sD} ≈ ${rD}%. Tỉ lệ bướm tối trong quần thể: đầu thế hệ ${dStart}%, sau khi chim săn ${dEnd}%. Dạng có tỉ lệ sống sót cao hơn là dạng ngụy trang tốt hơn trên vỏ cây lúc đó, nên nó để lại nhiều con hơn ở thế hệ sau.` });
+    }
+    list.push(
+      { tag: 'Giải thích', q: 'Dùng học thuyết của Darwin, hãy giải thích vì sao ở Manchester (Anh) cuối thế kỷ XIX có tới 98% bướm sâu đo là dạng tối.',
+        a: 'Ý chính cần có: (1) Trong quần thể vốn có biến dị: một số ít bướm tối xuất hiện do đột biến. (2) Khói than làm vỏ cây sẫm màu. (3) Chim phát hiện và ăn bướm sáng nhiều hơn vì chúng nổi bật trên nền tối. (4) Bướm tối sống sót nhiều hơn, sinh sản nhiều hơn và truyền gen màu tối cho con. (5) Qua nhiều thế hệ, tỉ lệ bướm tối tăng lên tới khoảng 98%.' },
+      { tag: 'Thử nghiệm', q: 'Nếu quần thể ban đầu hoàn toàn không có con bướm tối nào, khi rừng bị ô nhiễm thì điều gì xảy ra? Hãy thử đặt 40 sáng, 0 tối ở chế độ “Khu công nghiệp” rồi rút ra kết luận.',
+        a: 'Quần thể vẫn chỉ toàn bướm sáng. Chim ăn rất nhiều bướm sáng, nhưng không có dạng tối nào để được “chọn”. Kết luận: chọn lọc tự nhiên không tạo ra biến dị mới, mà chỉ sàng lọc những biến dị đã có. Nguồn biến dị đến từ đột biến và tổ hợp gen.' },
+      { tag: 'Liên hệ thực tế', q: 'Ở Việt Nam, vì sao Bộ Y tế khuyến cáo người dân không tự ý mua và dùng kháng sinh? Nêu 2 việc em và gia đình có thể làm.',
+        a: 'Tự ý dùng kháng sinh (sai loại, sai liều, dùng không đủ ngày) tạo áp lực chọn lọc, giữ lại vi khuẩn kháng thuốc. Chúng sinh sản và lan rộng, khiến thuốc mất tác dụng với cả cộng đồng. Việc có thể làm: chỉ dùng kháng sinh khi bác sĩ kê đơn; uống đủ liều, đủ ngày; không dùng kháng sinh để chữa cảm cúm do virus; không dùng lại thuốc thừa hay đưa thuốc cho người khác; rửa tay, tiêm chủng để ít bị nhiễm khuẩn.' }
+    );
+    return list;
+  }
+  let applyScore = { ok: 0, done: 0 };
+  function renderApply() {
+    const box = $('apply-list'); box.innerHTML = ''; applyScore = { ok: 0, done: 0 };
+    const upd = () => $('apply-score').textContent = `Trắc nghiệm: đúng ngay lần đầu ${applyScore.ok}/${APPLY.length}`;
+    upd();
+    APPLY.forEach((Q, i) => {
+      const c = document.createElement('div'); c.className = 'block quiz';
+      c.innerHTML = `<span class="qtag">Câu ${i + 1} · ${Q.tag}</span>`;
+      mcq(c, Q, first => { applyScore.done++; if (first) applyScore.ok++; upd(); });
+      box.appendChild(c);
+    });
+    openQuestions().forEach((Q, j) => {
+      const c = document.createElement('div'); c.className = 'block quiz';
+      const id = 'ans-' + j;
+      c.innerHTML = `<span class="qtag">Câu ${APPLY.length + j + 1} · Tự luận · ${Q.tag}</span><p class="q"></p><textarea id="${id}" placeholder="Viết câu trả lời của em ở đây…"></textarea><button type="button" class="reveal">Xem gợi ý đáp án</button>`;
+      c.querySelector('p.q').textContent = Q.q;
+      const b = c.querySelector('.reveal');
+      b.addEventListener('click', () => {
+        const w = document.createElement('p'); w.className = 'why'; w.innerHTML = '<b>Gợi ý đáp án:</b> '; w.appendChild(document.createTextNode(Q.a));
+        c.appendChild(w); b.remove();
+      });
+      box.appendChild(c);
+    });
+  }
+  let applyReturn = 'setup';
+  function openApply() {
+    applyReturn = S.view; renderApply(); show('apply');
+    $('panel').scrollTop = 0;
+    if (window.matchMedia('(max-width: 860px)').matches) $('sec-apply').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---------- controls ----------
+  function syncControls() {
+    const setup = S.state === 'setup', gen1 = S.gen === 1 && !S.history.length;
+    $('pol').value = Math.round(S.pollution * 100); $('pol').disabled = !setup;
+    $('pol-val').textContent = Math.round(S.pollution * 100) + '%';
+    document.querySelectorAll('#env-seg button').forEach(b => { b.setAttribute('aria-pressed', String(+b.dataset.p === Math.round(S.pollution * 100))); b.disabled = !setup; });
+    document.querySelectorAll('#pred-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.pred)));
+    $('out-L').textContent = S.nL; $('out-D').textContent = S.nD;
+    document.querySelectorAll('[data-step]').forEach(b => {
+      const [k, d] = b.dataset.step.split(','), v = k === 'L' ? S.nL : S.nD, tot = S.nL + S.nD;
+      b.disabled = !gen1 || (+d < 0 ? v <= 0 || tot <= 10 : tot >= 60);
+    });
+    S.total = S.nL + S.nD;
+    $('gen-lbl').textContent = S.gen;
+    $('pop-note').textContent = gen1
+      ? `Tổng ${S.total} con. Chim sẽ ăn một nửa (${Math.floor(S.total / 2)} con).`
+      : 'Quần thể này do thế hệ trước sinh ra. Muốn tự đặt số lượng, bấm “Làm lại từ đầu”.';
+    $('pred-err').hidden = true;
+    $('hud-gen').textContent = S.gen; $('hud-env').textContent = envName(S.pollution);
+    $('hud-l').textContent = S.nL; $('hud-d').textContent = S.nD;
+    $('btn-fast').disabled = (!S.nL || !S.nD) && !S.mut;
+    $('btn-apply-1').hidden = !S.history.length;
+    $('pop-note').textContent = gen1
+      ? `Tổng ${S.total} con. Chim sẽ ăn ${Math.round(S.eatFrac * 100)}% quần thể (${Math.max(1, Math.floor(S.total * S.eatFrac))} con).`
+      : 'Quần thể này do thế hệ trước sinh ra. Muốn tự đặt số lượng, bấm “Làm lại từ đầu”.';
+    $('btn-hunt').textContent = `Bắt đầu săn · ${S.huntTime} giây`;
+    [['set-time', S.huntTime], ['set-eat', S.eatFrac], ['set-mut', S.mut]].forEach(([id, v]) =>
+      document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === v))));
+    $('btn-history').disabled = !setup;
+    document.querySelectorAll('#set-diff button').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.v === S.diff)); b.disabled = !setup; });
+  }
+  $('set-time').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.huntTime = +b.dataset.v; syncControls(); } });
+  $('set-eat').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.eatFrac = +b.dataset.v; syncControls(); } });
+  $('set-mut').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.mut = +b.dataset.v; syncControls(); } });
+  $('btn-history').addEventListener('click', runHistory);
+  $('set-diff').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || b.dataset.v === S.diff || S.state !== 'setup') return;
+    S.diff = b.dataset.v; syncControls();
+    toast('Đang vẽ lại vỏ cây…', 1500);
+    setTimeout(() => {        // let the toast paint before the (heavy) texture repaint
+      MARKS = DIFF[S.diff].marks; WING = DIFF[S.diff].wing;
+      paintBirch(birchC.getContext('2d'), BW, BH, mulberry32(11));
+      paintSoot(sootC.getContext('2d'), BW, BH, mulberry32(23));
+      bumpTex.needsUpdate = true; applyEnvironment(); buildPopulation();
+      toast('Đã đổi độ khó: ' + b.textContent + '.', 1800);
+    }, 60);
+  });
+
+  // sound & fullscreen
+  $('btn-sound').addEventListener('click', () => {
+    AU.on = !AU.on; if (AU.on) audioInit();
+    if (AU.master) AU.master.gain.value = AU.on ? .7 : 0;
+    $('btn-sound').textContent = 'Âm thanh: ' + (AU.on ? 'bật' : 'tắt'); $('btn-sound').setAttribute('aria-pressed', String(AU.on));
+  });
+  $('btn-fs').addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await $('stage').requestFullscreen();
+    } catch (e) { toast('Trình duyệt này không cho phép chế độ toàn màn hình.'); }
+  });
+  document.addEventListener('fullscreenchange', () => { $('btn-fs').textContent = document.fullscreenElement ? 'Thoát toàn màn hình' : 'Toàn màn hình'; hidePop(); });
+
+  // copy data table as tab-separated text (pastes cleanly into Word / Excel)
+  $('btn-copy').addEventListener('click', () => {
+    const y0 = S.history.length && S.history[0].year;
+    const rows = [['Thế hệ', ...(y0 ? ['Năm'] : []), 'Bụi than (%)', 'Sáng đầu', 'Sáng sống', 'Tối đầu', 'Tối sống', '% tối']];
+    S.history.forEach(h => rows.push([h.gen, ...(y0 ? [y0 + (h.gen - 1) * 5] : []), Math.round(h.p * 100), h.sL, h.eL, h.sD, h.eD, Math.round(h.sD / (h.sL + h.sD) * 100)]));
+    const txt = rows.map(r => r.join('\t')).join('\n'), msg = $('copy-msg'), fb = $('copy-fallback');
+    if (!S.history.length) { msg.textContent = 'Chưa có số liệu để sao chép.'; return; }
+    const fallback = () => { fb.hidden = false; fb.value = txt; fb.focus(); fb.select(); msg.textContent = 'Nhấn Ctrl+C để sao chép phần đã chọn.'; };
+    try {
+      navigator.clipboard.writeText(txt).then(() => { msg.textContent = 'Đã sao chép. Dán (Ctrl+V) vào Word hoặc Excel.'; fb.hidden = true; }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  function setPollution(v) { S.pollution = v / 100; applyEnvironment(); syncControls(); }
+  $('pol').addEventListener('input', e => setPollution(+e.target.value));
+  $('env-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setPollution(+b.dataset.p); });
+  $('pred-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S.pred = b.dataset.v; syncControls(); } });
+  document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
+    const [k, d] = b.dataset.step.split(',');
+    if (k === 'L') S.nL = Math.max(0, S.nL + +d); else S.nD = Math.max(0, S.nD + +d);
+    syncControls(); buildPopulation();
+  }));
+  $('btn-hunt').addEventListener('click', () => startHunt(false));
+  $('btn-auto').addEventListener('click', () => startHunt(true));
+  $('btn-fast').addEventListener('click', () => fastRun(10));
+  $('btn-stop').addEventListener('click', endHunt);
+  $('btn-next').addEventListener('click', nextGen);
+  $('btn-apply-1').addEventListener('click', openApply);
+  $('btn-apply-2').addEventListener('click', openApply);
+  $('btn-apply-back').addEventListener('click', () => show(applyReturn));
+  $('chk-surv').addEventListener('change', e => { S.showSurv = e.target.checked; showRings(S.showSurv); });
+  $('btn-guide').addEventListener('click', () => { $('guide').hidden = false; hidePop(); });
+  $('guide-close').addEventListener('click', () => { $('guide').hidden = true; store.set('bbd-guide-seen', '1'); });
+  let resetArm = 0;
+  $('btn-reset').addEventListener('click', () => {
+    const b = $('btn-reset');
+    if (!resetArm) { b.textContent = 'Bấm lần nữa để xoá toàn bộ số liệu'; resetArm = setTimeout(() => { resetArm = 0; b.textContent = 'Làm lại từ đầu'; }, 3000); return; }
+    clearTimeout(resetArm); resetArm = 0; b.textContent = 'Làm lại từ đầu';
+    Object.assign(S, { state: 'setup', gen: 1, pred: null, nL: 20, nD: 20, history: [], next: null });
+    bird.g.visible = false; bird.phase = 'idle';
+    cam.position.set(0, EYE_H, 0);
+    $('hud-hunt').hidden = true; $('hud-pop').hidden = false; $('setup-msg').hidden = true;
+    buildPopulation(); show('setup'); syncControls(); drawChart();
+  });
+
+  // ---------- chart ----------
+  function drawChart() {
+    const pts = S.history.map(h => ({ g: h.gen, d: h.sD / (h.sL + h.sD), p: h.p }));
+    let proj = null;
+    if (S.state === 'result' && S.next) proj = { g: S.gen + 1, d: S.next.D / S.total, p: S.pollution };
+    else pts.push({ g: S.gen, d: S.nD / (S.nL + S.nD || 1), p: S.pollution });
+    const all = proj ? pts.concat(proj) : pts;
+    const maxG = Math.max(6, all[all.length - 1].g);
+    const X = g => 36 + (g - 1) / (maxG - 1) * 290, Y = v => 12 + (1 - v) * 118;
+    const bw = Math.max(3, Math.min(22, 290 / (maxG - 1) * .6));
+    let s = '<svg viewBox="0 0 340 158" role="img" aria-label="Biểu đồ tỉ lệ bướm dạng tối qua các thế hệ">';
+    [0, .5, 1].forEach(v => { s += `<line class="grid" x1="36" x2="326" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="30" y="${Y(v) + 3.5}" text-anchor="end">${v * 100}%</text>`; });
+    all.forEach(pt => { if (pt.p > 0) s += `<rect class="polbar" x="${X(pt.g) - bw / 2}" y="${Y(pt.p)}" width="${bw}" height="${pt.p * 118}" rx="2"/>`; });
+    const y0 = S.history.length && S.history[0].year ? S.history[0].year : null;
+    const yearOf = g => y0 + (g - 1) * 5;
+    const step = Math.ceil((maxG - 1) / 6);
+    for (let g = 1; g <= maxG; g += step) s += `<text class="ax" x="${X(g)}" y="148" text-anchor="middle">${y0 ? yearOf(g) : g}</text>`;
+    s += `<text class="ax" x="326" y="158" text-anchor="end">${y0 ? 'năm' : 'thế hệ'}</text>`;
+    if (y0) [[1848, 'bướm tối đầu tiên'], [1956, 'Luật Không khí sạch']].forEach(([yr, lb]) => {
+      const g = (yr - y0) / 5 + 1; if (g < 1 || g > maxG) return;
+      const x = X(g);
+      const early = yr === 1848;
+      s += `<line class="grid" x1="${x}" x2="${x}" y1="12" y2="130" stroke-dasharray="3 3"/><text class="ax" x="${early ? x + 3 : x - 3}" y="${early ? 22 : 124}" text-anchor="${early ? 'start' : 'end'}">${yr} · ${lb}</text>`;
+    });
+    if (pts.length > 1) s += `<polyline class="ln" points="${pts.map(p => X(p.g) + ',' + Y(p.d)).join(' ')}"/>`;
+    if (proj) { const l = pts[pts.length - 1]; s += `<line class="ln proj" x1="${X(l.g)}" y1="${Y(l.d)}" x2="${X(proj.g)}" y2="${Y(proj.d)}"/>`; }
+    pts.forEach(p => s += `<circle class="pt" cx="${X(p.g)}" cy="${Y(p.d)}" r="4"/>`);
+    if (proj) s += `<circle class="pt proj" cx="${X(proj.g)}" cy="${Y(proj.d)}" r="4"/>`;
+    const last = all[all.length - 1];
+    s += `<text class="val" x="${Math.min(X(last.g), 318)}" y="${Y(last.d) < 26 ? Y(last.d) + 18 : Y(last.d) - 9}" text-anchor="middle">${Math.round(last.d * 100)}%</text>`;
+    $('chart').innerHTML = s + '</svg>';
+    let t = '<tr><th>Thế hệ</th><th>Bụi than</th><th>Sáng: đầu → sống</th><th>Tối: đầu → sống</th><th>% tối</th></tr>';
+    S.history.forEach(h => { t += `<tr><td>${h.gen}${y0 ? ` (${yearOf(h.gen)})` : ''}</td><td>${Math.round(h.p * 100)}%</td><td>${h.sL} → ${h.eL}</td><td>${h.sD} → ${h.eD}</td><td>${Math.round(h.sD / (h.sL + h.sD) * 100)}%</td></tr>`; });
+    if (!S.history.length) t += '<tr><td colspan="5" style="text-align:left;color:var(--muted)">Chưa có số liệu. Hoàn thành một lượt săn để bắt đầu ghi.</td></tr>';
+    $('tbl').innerHTML = t;
+  }
+
+  // ---------- loop ----------
+  function angDiff(a, b) { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; }
+  function autoHunt(now) {
+    const b = bird, sp = S.caught < 4 ? 1 : .6;   // first few catches slow, so students can watch; then faster
+    if (b.phase === 'idle') {
+      if (now < S.nextPeck || S.caught >= S.target) return;
+      const alive = S.moths.filter(m => m.alive); if (!alive.length) return;
+      b.target = weightedPick(alive); b.phase = 'look'; b.t0 = now;
+      view.follow = b.target.pos;
+    } else if (b.phase === 'look') {
+      if (now - b.t0 > 450 * sp) {
+        const m = b.target, side = new V3(-m.n.z, 0, m.n.x).multiplyScalar((Math.random() - .5) * 3);
+        b.A.copy(m.pos).addScaledVector(m.n, 2.2).add(side).add(new V3(0, 1.6, 0));
+        b.B.copy(m.pos).addScaledVector(m.n, .09);
+        b.C.copy(b.A).lerp(b.B, .5).add(new V3(0, .5, 0));
+        b.phase = 'in'; b.t0 = now; b.g.visible = true;
+      }
+    } else if (b.phase === 'in') {
+      const k = Math.min(1, (now - b.t0) / (750 * sp)), e = 1 - (1 - k) * (1 - k);
+      b.g.position.copy(bez(b.A, b.C, b.B, e)); b.g.lookAt(k < 1 ? bez(b.A, b.C, b.B, Math.min(1, e + .05)) : b.target.pos);
+      if (k >= 1) {
+        eat(b.target, now);
+        const m = b.target, side = new V3(-m.n.z, 0, m.n.x).multiplyScalar((Math.random() - .5) * 4);
+        b.A.copy(b.B); b.B.copy(m.pos).addScaledVector(m.n, 2.5).add(side).add(new V3(0, 2.5, 0));
+        b.C.copy(b.A).addScaledVector(m.n, .6);
+        b.phase = 'out'; b.t0 = now;
+      }
+    } else if (b.phase === 'out') {
+      const k = Math.min(1, (now - b.t0) / (550 * sp));
+      b.g.position.copy(bez(b.A, b.C, b.B, k * k)); b.g.lookAt(bez(b.A, b.C, b.B, Math.min(1, k * k + .05)));
+      if (k >= 1) { b.g.visible = false; b.phase = 'idle'; S.nextPeck = now + 120; }
+    }
+  }
+
+  let last = performance.now(), shownT = -1, shownC = -1, miniT = 0;
+  function frame(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+
+    if (S.state === 'hunt') {
+      if (S.auto) autoHunt(now);
+      else {   // wall-clock timer, so slow computers still get exactly the set time
+        S.timeLeft = Math.max(0, (S.huntEnd - now) / 1000);
+        if (S.timeLeft <= 0) endHunt();
+      }
+      const tt = Math.ceil(S.timeLeft);
+      if (tt !== shownT || S.caught !== shownC) {
+        shownT = tt; shownC = S.caught;
+        $('h-time').innerHTML = S.auto ? '—' : `${tt}<small> s</small>`;
+        $('hud-time').textContent = S.auto ? '—' : tt;
+        $('h-caught').textContent = $('hud-caught').textContent = S.caught;
+        $('hud-hunt').classList.toggle('urgent', !S.auto && tt <= 10);
+      }
+    }
+
+    if ($('guide').hidden) movePlayer(dt);
+    if (view.follow) {
+      const t = lookAtPoint(view.follow), k = 1 - Math.exp(-dt * 5);
+      view.yaw += angDiff(view.yaw, t.yaw) * k; view.pitch += (clamp(t.pitch, -.6, .75) - view.pitch) * k;
+    }
+    cam.rotation.set(view.pitch, view.yaw, 0);
+    if (Math.abs(cam.fov - view.fov) > .01) { cam.fov += (view.fov - cam.fov) * Math.min(1, dt * 10); cam.updateProjectionMatrix(); }
+
+    if (bird.g.visible) { const f = Math.sin(now / 28) * .9; bird.wl.rotation.z = f; bird.wr.rotation.z = -f; }
+    for (const m of S.moths) {
+      if (m.alive || !m.mesh.visible) continue;
+      const k = (now - m.dieT) / 260;
+      if (k >= 1) m.mesh.visible = false;
+      else { m.mesh.material.opacity = 1 - k; m.mesh.scale.setScalar(WING * m.scale * (1 - k * .5)); }
+    }
+    if (S.state === 'result') { const o = .6 + .4 * Math.sin(now / 280); for (const m of S.moths) if (m.ring) m.ring.material.opacity = o; }
+    for (let i = fx.length - 1; i >= 0; i--) {
+      const f = fx[i], k = (now - f.t) / 650;
+      if (k >= 1) { scene.remove(f.s); f.s.material.dispose(); f.bits.forEach(b => { scene.remove(b); b.geometry.dispose(); b.material.dispose(); }); fx.splice(i, 1); continue; }
+      f.s.scale.setScalar(WING * (1 + k * 3)); f.s.material.opacity = 1 - k;
+      f.bits.forEach(b => { b.position.addScaledVector(b.userData.v, dt); b.userData.v.y -= dt * 1.5; b.rotation.x += dt * 8; b.rotation.y += dt * 6; b.material.opacity = 1 - k; });
+    }
+    updateLeaves(dt, now);
+    if (now - miniT > 60) { miniT = now; drawMini(); }
+
+    renderer.render(scene, cam);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- boot ----------
+  resize();
+  applyEnvironment();
+  buildPopulation();
+  { const t = zone.reduce((a, b) => Math.hypot(a.x, a.z) < Math.hypot(b.x, b.z) ? a : b); view.yaw = lookAtPoint(new V3(t.x, EYE_H, t.z)).yaw; }
+  syncControls(); drawChart();
+  $('loading').hidden = true;
+  if (!store.get('bbd-guide-seen')) $('guide').hidden = false;
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

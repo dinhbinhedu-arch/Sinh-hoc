@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fbfd6"/><stop offset="1" stop-color="#dfe6dc"/>
+    </linearGradient>
+    <linearGradient id="birch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b9b5aa"/><stop offset=".3" stop-color="#ebe8df"/><stop offset=".7" stop-color="#e2ded3"/><stop offset="1" stop-color="#a9a598"/>
+    </linearGradient>
+    <linearGradient id="soot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1c1a18"/><stop offset=".35" stop-color="#3a3632"/><stop offset=".7" stop-color="#312d29"/><stop offset="1" stop-color="#191715"/>
+    </linearGradient>
+    <g id="moth">
+      <path d="M0 -10C-15 -19 -36 -16 -52 -2c6 11 18 21 33 21 9 0 16-8 19-14zM0 -10c15-9 36-6 52 8-6 11-18 21-33 21-9 0-16-8-19-14z"/>
+      <path d="M0 4c-12 6-24 18-21 30 9 3 18-6 21-15zM0 4c12 6 24 18 21 30-9 3-18-6-21-15z" opacity=".85"/>
+      <ellipse cx="0" cy="4" rx="4.5" ry="20" fill="#1d1a16"/>
+    </g>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)"/>
+  <g opacity=".45">
+    <rect x="18" y="0" width="16" height="360" fill="#d8d4c8"/><rect x="600" y="0" width="12" height="360" fill="#cfcabd"/>
+    <rect x="296" y="0" width="10" height="360" fill="#cfcabd"/><rect x="470" y="0" width="14" height="360" fill="#d8d4c8"/>
+  </g>
+  <!-- clean birch trunk -->
+  <rect x="60" y="0" width="200" height="360" fill="url(#birch)"/>
+  <g fill="#4a3d31" opacity=".55">
+    <rect x="92" y="42" width="46" height="4" rx="2"/><rect x="170" y="88" width="30" height="3" rx="1.5"/>
+    <rect x="80" y="150" width="24" height="3" rx="1.5"/><rect x="190" y="220" width="40" height="4" rx="2"/>
+    <rect x="110" y="286" width="34" height="3" rx="1.5"/><rect x="200" y="320" width="22" height="3" rx="1.5"/>
+  </g>
+  <g fill="#a3ae8c" opacity=".7">
+    <circle cx="120" cy="110" r="14"/><circle cx="134" cy="118" r="9"/><circle cx="212" cy="160" r="11"/>
+    <circle cx="96" cy="250" r="12"/><circle cx="226" cy="276" r="8"/>
+  </g>
+  <!-- sooty trunk -->
+  <rect x="360" y="0" width="200" height="360" fill="url(#soot)"/>
+  <g fill="#0e0d0c" opacity=".7">
+    <rect x="390" y="60" width="40" height="4" rx="2"/><rect x="480" y="130" width="34" height="3" rx="1.5"/>
+    <rect x="400" y="240" width="28" height="3" rx="1.5"/><rect x="470" y="300" width="44" height="4" rx="2"/>
+  </g>
+  <!-- camouflaged pale moth on birch, conspicuous dark moth on birch -->
+  <use href="#moth" transform="translate(150 196) rotate(-8) scale(.9)" fill="#dcd6c6"/>
+  <use href="#moth" transform="translate(206 62) rotate(12) scale(.62)" fill="#23201c"/>
+  <!-- camouflaged dark moth on soot, conspicuous pale moth on soot -->
+  <use href="#moth" transform="translate(452 190) rotate(6) scale(.9)" fill="#2a2622"/>
+  <use href="#moth" transform="translate(420 300) rotate(-14) scale(.62)" fill="#e6e1d3"/>
+</svg>
